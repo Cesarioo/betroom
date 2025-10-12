@@ -6,12 +6,13 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 export default function ProfilePage() {
   const [selectedPoint, setSelectedPoint] = useState<number | null>(null);
   const [showBetHistory, setShowBetHistory] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Mock user data
   const userCash = 1250;
@@ -20,6 +21,8 @@ export default function ProfilePage() {
   const [userEmail, setUserEmail] = useState("alex.johnson@email.com");
   const [tempName, setTempName] = useState(userName);
   const [tempEmail, setTempEmail] = useState(userEmail);
+  const [profileImage, setProfileImage] = useState("https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&q=80");
+  const [tempProfileImage, setTempProfileImage] = useState(profileImage);
   const memberSince = "January 2024";
 
   const handleEditClick = () => {
@@ -27,11 +30,13 @@ export default function ProfilePage() {
       // Save changes
       setUserName(tempName);
       setUserEmail(tempEmail);
+      setProfileImage(tempProfileImage);
       setIsEditing(false);
     } else {
       // Start editing
       setTempName(userName);
       setTempEmail(userEmail);
+      setTempProfileImage(profileImage);
       setIsEditing(true);
     }
   };
@@ -39,7 +44,30 @@ export default function ProfilePage() {
   const handleCancelEdit = () => {
     setTempName(userName);
     setTempEmail(userEmail);
+    // Clean up blob URL if it exists and we're canceling
+    if (tempProfileImage.startsWith('blob:')) {
+      URL.revokeObjectURL(tempProfileImage);
+    }
+    setTempProfileImage(profileImage);
     setIsEditing(false);
+  };
+
+  const handleImageClick = () => {
+    if (isEditing) {
+      fileInputRef.current?.click();
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Clean up previous blob URL if it exists
+      if (tempProfileImage.startsWith('blob:')) {
+        URL.revokeObjectURL(tempProfileImage);
+      }
+      const url = URL.createObjectURL(file);
+      setTempProfileImage(url);
+    }
   };
 
   // Mock PnL data (last 7 months)
@@ -126,10 +154,28 @@ export default function ProfilePage() {
       <div className="px-6 py-8">
         {/* Avatar and Basic Info - Horizontal Layout */}
         <div className="flex items-center gap-4 mb-8">
-          <Avatar className="w-20 h-20 flex-shrink-0">
-            <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=User" alt="Profile" />
-            <AvatarFallback className="text-2xl">U</AvatarFallback>
-          </Avatar>
+          <div className="relative w-20 h-20 flex-shrink-0">
+            <Avatar className="w-20 h-20">
+              <AvatarImage src={isEditing ? tempProfileImage : profileImage} alt="Profile" />
+              <AvatarFallback className="text-2xl">U</AvatarFallback>
+            </Avatar>
+            {isEditing && (
+              <button
+                onClick={handleImageClick}
+                className="absolute inset-0 rounded-full bg-black/60 flex items-center justify-center text-white text-xs font-medium hover:bg-black/70 transition-all cursor-pointer"
+              >
+                Modify
+              </button>
+            )}
+          </div>
+          {/* Hidden File Input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="hidden"
+          />
           <div className="flex-1">
             {!isEditing ? (
               <>

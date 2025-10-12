@@ -15,18 +15,18 @@ const rooms = [
     id: 1,
     name: 'Work Room',
     members: [
-      { name: 'John', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John' },
-      { name: 'Sarah', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah' },
-      { name: 'Mike', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike' },
+      { name: 'John', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80' },
+      { name: 'Sarah', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&q=80' },
+      { name: 'Mike', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&q=80' },
     ]
   },
   {
     id: 2,
     name: 'Friends Room',
     members: [
-      { name: 'Emma', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Emma' },
-      { name: 'Alex', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex' },
-      { name: 'Lisa', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Lisa' },
+      { name: 'Emma', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&q=80' },
+      { name: 'Alex', image: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&q=80' },
+      { name: 'Lisa', image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&q=80' },
     ]
   },
 ];
@@ -48,9 +48,9 @@ const bets = [
     imageUrl: "https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=400&q=80",
     amountAtStake: 250,
     participants: [
-      { name: 'John', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John' },
-      { name: 'Sarah', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah' },
-      { name: 'Mike', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike' },
+      { name: 'John', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80' },
+      { name: 'Sarah', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&q=80' },
+      { name: 'Mike', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&q=80' },
     ],
     percentage: 65,
     expirationDate: getFutureDate(0, 18) // Today at 6 PM
@@ -62,9 +62,9 @@ const bets = [
     imageUrl: "https://images.unsplash.com/photo-1621416894569-0f39ed31d247?w=400&q=80",
     amountAtStake: 500,
     participants: [
-      { name: 'John', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John' },
-      { name: 'Sarah', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah' },
-      { name: 'Mike', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike' },
+      { name: 'John', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80' },
+      { name: 'Sarah', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&q=80' },
+      { name: 'Mike', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&q=80' },
     ],
     percentage: 42,
     expirationDate: getFutureDate(18, 23) // 18 days from now at 11 PM
@@ -76,9 +76,9 @@ const bets = [
     imageUrl: "https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?w=400&q=80",
     amountAtStake: 100,
     participants: [
-      { name: 'John', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John' },
-      { name: 'Sarah', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah' },
-      { name: 'Mike', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike' },
+      { name: 'John', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80' },
+      { name: 'Sarah', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&q=80' },
+      { name: 'Mike', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&q=80' },
     ],
     percentage: 33,
     expirationDate: getFutureDate(1, 9) // Tomorrow at 9 AM
@@ -90,8 +90,8 @@ const bets = [
     imageUrl: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=400&q=80",
     amountAtStake: 400,
     participants: [
-      { name: 'John', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John' },
-      { name: 'Sarah', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah' },
+      { name: 'John', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80' },
+      { name: 'Sarah', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&q=80' },
     ],
     percentage: 58,
     expirationDate: getFutureDate(5, 16) // 5 days from now at 4 PM
@@ -103,8 +103,8 @@ const bets = [
     imageUrl: "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=400&q=80",
     amountAtStake: 200,
     participants: [
-      { name: 'John', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John' },
-      { name: 'Mike', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike' },
+      { name: 'John', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80' },
+      { name: 'Mike', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&q=80' },
     ],
     percentage: 72,
     expirationDate: getFutureDate(15, 12) // 15 days from now at noon
@@ -116,9 +116,9 @@ const bets = [
     imageUrl: "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=400&q=80",
     amountAtStake: 150,
     participants: [
-      { name: 'Emma', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Emma' },
-      { name: 'Alex', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex' },
-      { name: 'Lisa', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Lisa' },
+      { name: 'Emma', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&q=80' },
+      { name: 'Alex', image: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&q=80' },
+      { name: 'Lisa', image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&q=80' },
     ],
     percentage: 78,
     expirationDate: getFutureDate(2, 20) // 2 days from now at 8 PM
@@ -130,9 +130,9 @@ const bets = [
     imageUrl: "https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?w=400&q=80",
     amountAtStake: 320,
     participants: [
-      { name: 'Emma', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Emma' },
-      { name: 'Alex', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex' },
-      { name: 'Lisa', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Lisa' },
+      { name: 'Emma', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&q=80' },
+      { name: 'Alex', image: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&q=80' },
+      { name: 'Lisa', image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&q=80' },
     ],
     percentage: 55,
     expirationDate: getFutureDate(8, 14) // 8 days from now at 2 PM
@@ -144,8 +144,8 @@ const bets = [
     imageUrl: "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400&q=80",
     amountAtStake: 180,
     participants: [
-      { name: 'Emma', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Emma' },
-      { name: 'Lisa', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Lisa' },
+      { name: 'Emma', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&q=80' },
+      { name: 'Lisa', image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&q=80' },
     ],
     percentage: 45,
     expirationDate: getFutureDate(1, 15) // Tomorrow at 3 PM
@@ -157,8 +157,8 @@ const bets = [
     imageUrl: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80",
     amountAtStake: 90,
     participants: [
-      { name: 'Emma', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Emma' },
-      { name: 'Alex', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex' },
+      { name: 'Emma', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&q=80' },
+      { name: 'Alex', image: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&q=80' },
     ],
     percentage: 67,
     expirationDate: getFutureDate(25, 10) // 25 days from now at 10 AM
@@ -170,9 +170,9 @@ const bets = [
     imageUrl: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&q=80",
     amountAtStake: 600,
     participants: [
-      { name: 'Emma', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Emma' },
-      { name: 'Alex', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex' },
-      { name: 'Lisa', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Lisa' },
+      { name: 'Emma', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&q=80' },
+      { name: 'Alex', image: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&q=80' },
+      { name: 'Lisa', image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&q=80' },
     ],
     percentage: 88,
     expirationDate: getFutureDate(60, 12) // 60 days from now at noon
@@ -265,7 +265,7 @@ export default function Homepage() {
               </div>
               <Link href="/profile">
                 <Avatar className="w-10 h-10 cursor-pointer hover:opacity-80 transition-opacity">
-                  <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=User" alt="Profile" />
+                  <AvatarImage src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&q=80" alt="Profile" />
                   <AvatarFallback>U</AvatarFallback>
                 </Avatar>
               </Link>
