@@ -5,7 +5,6 @@ export const metadata: Metadata = {
   title: 'Betroom',
   description: 'Betroom',
   manifest: '/manifest.json',
-  themeColor: '#000000',
   icons: {
     icon: '/public/icon-192x192.png',
     apple: '/public/icon-192x192.png',
@@ -14,7 +13,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <body>{children}</body>
     </html>
   )
