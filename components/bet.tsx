@@ -75,7 +75,7 @@ export default function Bet({
               />
               {/* Percentage text inside */}
               <span 
-                className="absolute bottom-0.5 text-xs sm:text-sm font-bold z-10"
+                className="absolute bottom-0.5 text-xs sm:text-sm font-bold z-5"
                 style={{ color: getColor(percentage) }}
               >
                 {percentage}%

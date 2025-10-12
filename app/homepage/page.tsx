@@ -5,14 +5,14 @@ import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Plus } from 'lucide-react';
 import { useState, useRef } from 'react';
-import AddGroup from '@/components/addGroup';
+import AddRoom from '@/components/addRoom';
 import Bet from '@/components/bet';
 
-// Mock data for groups
-const groups = [
+// Mock data for rooms
+const rooms = [
   {
     id: 1,
-    name: 'Work Squad',
+    name: 'Work Room',
     members: [
       { name: 'John', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John' },
       { name: 'Sarah', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah' },
@@ -21,7 +21,7 @@ const groups = [
   },
   {
     id: 2,
-    name: 'Friends',
+    name: 'Friends Room',
     members: [
       { name: 'Emma', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Emma' },
       { name: 'Alex', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex' },
@@ -34,7 +34,7 @@ const groups = [
 const bets = [
   {
     id: 1,
-    groupId: 1,
+    roomId: 1,
     title: "Will it rain tomorrow in San Francisco?",
     imageUrl: "https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=400&q=80",
     amountAtStake: 250,
@@ -47,7 +47,7 @@ const bets = [
   },
   {
     id: 2,
-    groupId: 1,
+    roomId: 1,
     title: "Will Bitcoin reach $100k by end of month?",
     imageUrl: "https://images.unsplash.com/photo-1621416894569-0f39ed31d247?w=400&q=80",
     amountAtStake: 500,
@@ -60,7 +60,7 @@ const bets = [
   },
   {
     id: 3,
-    groupId: 1,
+    roomId: 1,
     title: "Will finish the project before deadline",
     imageUrl: "https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?w=400&q=80",
     amountAtStake: 100,
@@ -73,7 +73,7 @@ const bets = [
   },
   {
     id: 4,
-    groupId: 1,
+    roomId: 1,
     title: "Stock market will hit new high this week",
     imageUrl: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=400&q=80",
     amountAtStake: 400,
@@ -85,7 +85,7 @@ const bets = [
   },
   {
     id: 5,
-    groupId: 1,
+    roomId: 1,
     title: "CEO will announce layoffs this month",
     imageUrl: "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=400&q=80",
     amountAtStake: 200,
@@ -97,7 +97,7 @@ const bets = [
   },
   {
     id: 6,
-    groupId: 2,
+    roomId: 2,
     title: "Lakers will win their next game",
     imageUrl: "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=400&q=80",
     amountAtStake: 150,
@@ -110,7 +110,7 @@ const bets = [
   },
   {
     id: 7,
-    groupId: 2,
+    roomId: 2,
     title: "New iPhone will be announced next week",
     imageUrl: "https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?w=400&q=80",
     amountAtStake: 320,
@@ -123,7 +123,7 @@ const bets = [
   },
   {
     id: 8,
-    groupId: 2,
+    roomId: 2,
     title: "Will get concert tickets before they sell out",
     imageUrl: "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400&q=80",
     amountAtStake: 180,
@@ -135,7 +135,7 @@ const bets = [
   },
   {
     id: 9,
-    groupId: 2,
+    roomId: 2,
     title: "New restaurant will open by next month",
     imageUrl: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80",
     amountAtStake: 90,
@@ -147,7 +147,7 @@ const bets = [
   },
   {
     id: 10,
-    groupId: 2,
+    roomId: 2,
     title: "Summer vacation trip will happen",
     imageUrl: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&q=80",
     amountAtStake: 600,
@@ -161,26 +161,33 @@ const bets = [
 ];
 
 export default function Homepage() {
-  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(1);
-  const [isAddGroupOpen, setIsAddGroupOpen] = useState(false);
-  const groupRefs = useRef<{ [key: number]: HTMLButtonElement | null }>({});
+  const [selectedRoomId, setSelectedRoomId] = useState<number | null>(1);
+  const [isAddRoomOpen, setIsAddRoomOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userCash, setUserCash] = useState(1250);
+  const [userAtStake, setUserAtStake] = useState(450);
+  const roomRefs = useRef<{ [key: number]: HTMLButtonElement | null }>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Filter bets by selected group
-  const filteredBets = selectedGroupId 
-    ? bets.filter(bet => bet.groupId === selectedGroupId)
+  const handleLogin = () => {
+    setIsLoggedIn(true);
+  };
+
+  // Filter bets by selected room
+  const filteredBets = selectedRoomId 
+    ? bets.filter(bet => bet.roomId === selectedRoomId)
     : bets;
 
-  const handleGroupSelect = (groupId: number) => {
-    setSelectedGroupId(groupId);
+  const handleRoomSelect = (roomId: number) => {
+    setSelectedRoomId(roomId);
     
-    // Scroll the selected group to the left
-    const groupElement = groupRefs.current[groupId];
+    // Scroll the selected room to the left
+    const roomElement = roomRefs.current[roomId];
     const scrollContainer = scrollContainerRef.current;
     
-    if (groupElement && scrollContainer) {
+    if (roomElement && scrollContainer) {
       const containerLeft = scrollContainer.getBoundingClientRect().left;
-      const elementLeft = groupElement.getBoundingClientRect().left;
+      const elementLeft = roomElement.getBoundingClientRect().left;
       const scrollLeft = scrollContainer.scrollLeft;
       
       // Calculate the target scroll position (with some padding)
@@ -210,44 +217,61 @@ export default function Homepage() {
             <span className="text-xl font-semibold text-foreground">Betroom</span>
           </Link>
 
-          {/* Sign In / Sign Up on the right */}
-          <div className="flex items-center gap-6">
-            <Link 
-              href="/signin" 
-              className="text-sm font-medium text-muted-foreground hover:text-accent-foreground transition-colors"
-            >
-              Sign In
-            </Link>
-            <Link 
-              href="/signup" 
-              className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
-            >
-              Sign Up
-            </Link>
-          </div>
+          {/* Sign In / Sign Up or User Info on the right */}
+          {!isLoggedIn ? (
+            <div className="flex items-center gap-6">
+              <button 
+                onClick={handleLogin}
+                className="text-sm font-medium text-muted-foreground hover:text-accent-foreground transition-colors"
+              >
+                Sign In
+              </button>
+              <button 
+                onClick={handleLogin}
+                className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+              >
+                Sign Up
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-4 sm:gap-6">
+              <div className="flex flex-col items-center">
+                <span className="text-xs text-muted-foreground">Cash</span>
+                <span className="text-sm sm:text-base font-bold text-foreground">${userCash}</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-xs text-muted-foreground">In Bets</span>
+                <span className="text-sm sm:text-base font-bold text-foreground">${userAtStake}</span>
+              </div>
+              <Avatar className="w-10 h-10 cursor-pointer hover:opacity-80 transition-opacity">
+                <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=User" alt="Profile" />
+                <AvatarFallback>U</AvatarFallback>
+              </Avatar>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Sticky Group Selector */}
+      {/* Sticky Room Selector */}
       <div className="sticky top-0 z-10 w-full border-b border-border bg-background">
           <div 
             ref={scrollContainerRef}
             className="flex gap-6 overflow-x-auto py-4 scrollbar-hide snap-x snap-mandatory"
           >
-            {groups.map((group, index) => (
+            {rooms.map((room, index) => (
               <button
-                key={group.id}
-                ref={(el) => { groupRefs.current[group.id] = el; }}
-                onClick={() => handleGroupSelect(group.id)}
+                key={room.id}
+                ref={(el) => { roomRefs.current[room.id] = el; }}
+                onClick={() => handleRoomSelect(room.id)}
                 className={`flex items-center gap-3 min-w-fit snap-start group transition-all rounded-full px-4 py-2 ${
-                  selectedGroupId === group.id 
+                  selectedRoomId === room.id 
                     ? 'opacity-100 bg-red-900/30 border border-red-800/50' 
                     : 'opacity-60 hover:opacity-80 border border-transparent'
                 } ${index === 0 ? 'ml-6' : ''}`}
               >
                 {/* Avatar Group */}
                 <div className="flex -space-x-3">
-                  {group.members.map((member, idx) => (
+                  {room.members.map((member, idx) => (
                     <Avatar 
                       key={idx} 
                       className="w-10 h-10"
@@ -257,27 +281,27 @@ export default function Homepage() {
                     </Avatar>
                   ))}
                 </div>
-                {/* Group Name */}
+                {/* Room Name */}
                 <span className={`text-sm font-medium whitespace-nowrap transition-colors ${
-                  selectedGroupId === group.id
+                  selectedRoomId === room.id
                     ? 'text-red-300'
                     : 'text-muted-foreground group-hover:text-foreground'
                 }`}>
-                  {group.name}
+                  {room.name}
                 </span>
               </button>
             ))}
             
-            {/* Add New Group Button */}
+            {/* Add New Room Button */}
             <button 
-              onClick={() => setIsAddGroupOpen(true)}
+              onClick={() => setIsAddRoomOpen(true)}
               className="flex items-center gap-3 min-w-fit snap-start group opacity-60 hover:opacity-80 transition-opacity mr-6"
             >
               <div className="w-10 h-10 rounded-full border-2 border-dashed border-muted-foreground/50 flex items-center justify-center group-hover:border-primary group-hover:bg-primary/10 transition-all">
                 <Plus className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
               </div>
               <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors whitespace-nowrap">
-                Add Group
+                Add Room
               </span>
             </button>
           </div>
@@ -300,8 +324,8 @@ export default function Homepage() {
         </div>
       </main>
 
-      {/* Add Group Dialog */}
-      <AddGroup open={isAddGroupOpen} onOpenChange={setIsAddGroupOpen} />
+      {/* Add Room Dialog */}
+      <AddRoom open={isAddRoomOpen} onOpenChange={setIsAddRoomOpen} />
     </div>
   );
 }
