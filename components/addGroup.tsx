@@ -100,7 +100,8 @@ export default function AddGroup({ open, onOpenChange }: AddGroupProps) {
                   onChange={(e) => handleChange(index, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(index, e)}
                   onPaste={handlePaste}
-                  className="code-input w-10 h-12 sm:w-14 sm:h-16 text-center text-lg sm:text-2xl font-bold border-2 border-input bg-background rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/50 transition-all"
+                  autoFocus={false}
+                  className="code-input w-10 h-12 sm:w-14 sm:h-16 text-center text-lg sm:text-2xl font-bold border-2 border-input bg-background rounded-md focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-400/50 transition-all"
                 />
               ))}
             </div>
@@ -120,7 +121,8 @@ export default function AddGroup({ open, onOpenChange }: AddGroupProps) {
                   onChange={(e) => handleChange(index, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(index, e)}
                   onPaste={handlePaste}
-                  className="code-input w-10 h-12 sm:w-14 sm:h-16 text-center text-lg sm:text-2xl font-bold border-2 border-input bg-background rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/50 transition-all"
+                  autoFocus={false}
+                  className="code-input w-10 h-12 sm:w-14 sm:h-16 text-center text-lg sm:text-2xl font-bold border-2 border-input bg-background rounded-md focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-400/50 transition-all"
                 />
               ))}
             </div>

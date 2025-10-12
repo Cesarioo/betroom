@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import AddGroup from '@/components/addGroup';
+import Bet from '@/components/bet';
 
 // Mock data for groups
 const groups = [
@@ -20,52 +21,159 @@ const groups = [
   },
   {
     id: 2,
-    name: 'College Friends',
+    name: 'Friends',
     members: [
       { name: 'Emma', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Emma' },
       { name: 'Alex', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex' },
       { name: 'Lisa', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Lisa' },
     ]
   },
+];
+
+// Mock data for bets
+const bets = [
+  {
+    id: 1,
+    groupId: 1,
+    title: "Will it rain tomorrow in San Francisco?",
+    imageUrl: "https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=400&q=80",
+    amountAtStake: 250,
+    participants: [
+      { name: 'John', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John' },
+      { name: 'Sarah', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah' },
+      { name: 'Mike', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike' },
+    ],
+    percentage: 65
+  },
+  {
+    id: 2,
+    groupId: 1,
+    title: "Will Bitcoin reach $100k by end of month?",
+    imageUrl: "https://images.unsplash.com/photo-1621416894569-0f39ed31d247?w=400&q=80",
+    amountAtStake: 500,
+    participants: [
+      { name: 'John', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John' },
+      { name: 'Sarah', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah' },
+      { name: 'Mike', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike' },
+    ],
+    percentage: 42
+  },
   {
     id: 3,
-    name: 'Family',
-    members: [
-      { name: 'Dad', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Dad' },
-      { name: 'Mom', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mom' },
-      { name: 'Sis', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sis' },
-    ]
+    groupId: 1,
+    title: "Will finish the project before deadline",
+    imageUrl: "https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?w=400&q=80",
+    amountAtStake: 100,
+    participants: [
+      { name: 'John', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John' },
+      { name: 'Sarah', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah' },
+      { name: 'Mike', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike' },
+    ],
+    percentage: 33
   },
   {
     id: 4,
-    name: 'Gaming Crew',
-    members: [
-      { name: 'Tyler', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Tyler' },
-      { name: 'Nina', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Nina' },
-      { name: 'Chris', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Chris' },
-    ]
+    groupId: 1,
+    title: "Stock market will hit new high this week",
+    imageUrl: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=400&q=80",
+    amountAtStake: 400,
+    participants: [
+      { name: 'John', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John' },
+      { name: 'Sarah', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah' },
+    ],
+    percentage: 58
   },
   {
     id: 5,
-    name: 'Neighborhood',
-    members: [
-      { name: 'Tom', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Tom' },
-      { name: 'Jenny', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Jenny' },
-      { name: 'Dave', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Dave' },
-    ]
+    groupId: 1,
+    title: "CEO will announce layoffs this month",
+    imageUrl: "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=400&q=80",
+    amountAtStake: 200,
+    participants: [
+      { name: 'John', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John' },
+      { name: 'Mike', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike' },
+    ],
+    percentage: 72
   },
+  {
+    id: 6,
+    groupId: 2,
+    title: "Lakers will win their next game",
+    imageUrl: "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=400&q=80",
+    amountAtStake: 150,
+    participants: [
+      { name: 'Emma', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Emma' },
+      { name: 'Alex', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex' },
+      { name: 'Lisa', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Lisa' },
+    ],
+    percentage: 78
+  },
+  {
+    id: 7,
+    groupId: 2,
+    title: "New iPhone will be announced next week",
+    imageUrl: "https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?w=400&q=80",
+    amountAtStake: 320,
+    participants: [
+      { name: 'Emma', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Emma' },
+      { name: 'Alex', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex' },
+      { name: 'Lisa', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Lisa' },
+    ],
+    percentage: 55
+  },
+  {
+    id: 8,
+    groupId: 2,
+    title: "Will get concert tickets before they sell out",
+    imageUrl: "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400&q=80",
+    amountAtStake: 180,
+    participants: [
+      { name: 'Emma', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Emma' },
+      { name: 'Lisa', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Lisa' },
+    ],
+    percentage: 45
+  },
+  {
+    id: 9,
+    groupId: 2,
+    title: "New restaurant will open by next month",
+    imageUrl: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80",
+    amountAtStake: 90,
+    participants: [
+      { name: 'Emma', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Emma' },
+      { name: 'Alex', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex' },
+    ],
+    percentage: 67
+  },
+  {
+    id: 10,
+    groupId: 2,
+    title: "Summer vacation trip will happen",
+    imageUrl: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&q=80",
+    amountAtStake: 600,
+    participants: [
+      { name: 'Emma', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Emma' },
+      { name: 'Alex', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex' },
+      { name: 'Lisa', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Lisa' },
+    ],
+    percentage: 88
+  }
 ];
 
 export default function Homepage() {
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(1);
   const [isAddGroupOpen, setIsAddGroupOpen] = useState(false);
 
+  // Filter bets by selected group
+  const filteredBets = selectedGroupId 
+    ? bets.filter(bet => bet.groupId === selectedGroupId)
+    : bets;
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header with Navigation and Group Selector */}
-      <header className="w-full border-b border-border">
-        {/* Top Navigation Bar */}
-        <div className="flex items-center justify-between px-6 py-4">
+      {/* Top Navigation Bar */}
+      <div className="w-full bg-background">
+        <div className="flex items-center justify-between px-6 pt-4">
           {/* Logo on the left */}
           <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <Image
@@ -94,10 +202,11 @@ export default function Homepage() {
             </Link>
           </div>
         </div>
+      </div>
 
-        {/* Group Selector Slider */}
-        <div className="pb-4">
-          <div className="flex gap-6 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory pl-6">
+      {/* Sticky Group Selector */}
+      <div className="sticky top-0 z-10 w-full border-b border-border bg-background">
+          <div className="flex gap-6 overflow-x-auto py-4 scrollbar-hide snap-x snap-mandatory">
             {groups.map((group, index) => (
               <button
                 key={group.id}
@@ -106,7 +215,7 @@ export default function Homepage() {
                   selectedGroupId === group.id 
                     ? 'opacity-100 bg-red-900/30 border border-red-800/50' 
                     : 'opacity-60 hover:opacity-80 border border-transparent'
-                } ${index === groups.length - 1 ? 'mr-6' : ''}`}
+                } ${index === 0 ? 'ml-6' : ''}`}
               >
                 {/* Avatar Group */}
                 <div className="flex -space-x-3">
@@ -144,12 +253,23 @@ export default function Homepage() {
               </span>
             </button>
           </div>
-        </div>
-      </header>
+      </div>
 
-      {/* Main Content Area - Ready for future content */}
+      {/* Main Content Area */}
       <main className="px-6 py-8">
-        {/* Content will go here */}
+        <div className="space-y-4">
+          {filteredBets.map((bet) => (
+            <Bet
+              key={bet.id}
+              id={bet.id}
+              title={bet.title}
+              imageUrl={bet.imageUrl}
+              amountAtStake={bet.amountAtStake}
+              participants={bet.participants}
+              percentage={bet.percentage}
+            />
+          ))}
+        </div>
       </main>
 
       {/* Add Group Dialog */}
