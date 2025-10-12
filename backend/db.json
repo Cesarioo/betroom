@@ -215,44 +215,42 @@
       "timestamp": "2025-10-10T12:00:00.000Z",
       "status": "filled"
     },
-
     {
-        "id": "trade_4",
-        "betId": "bet_3",
-        "userId": "user_5",
-        "position": "no",
-        "percentage": 70,
-        "amount": 100,
-        "type": "maker",
-        "makerTradeId": null,
-        "timestamp": "2025-11-10T10:00:00.000Z",
-        "status": "partially_filled"
-      },
-      {
-        "id": "trade_5",
-        "betId": "bet_3",
-        "userId": "user_6",
-        "position": "yes",
-        "percentage": 30,
-        "amount": 18,
-        "type": "taker",
-        "makerTradeId": "trade_4",
-        "timestamp": "2025-10-10T11:00:00.000Z",
-        "status": "filled"
-      },
-      {
-        "id": "trade_6",
-        "betId": "bet_3",
-        "userId": "user_7",
-        "position": "yes",
-        "percentage": 30,
-        "amount": 12,
-        "type": "taker",
-        "makerTradeId": "trade_4",
-        "timestamp": "2025-10-10T12:00:00.000Z",
-        "status": "filled"
-      }
-    
+      "id": "trade_4",
+      "betId": "bet_3",
+      "userId": "user_5",
+      "position": "no",
+      "percentage": 25,
+      "amount": 150,
+      "type": "maker",
+      "makerTradeId": null,
+      "timestamp": "2025-11-10T10:00:00.000Z",
+      "status": "partially_filled"
+    },
+    {
+      "id": "trade_5",
+      "betId": "bet_3",
+      "userId": "user_6",
+      "position": "yes",
+      "percentage": 75,
+      "amount": 18,
+      "type": "taker",
+      "makerTradeId": "trade_4",
+      "timestamp": "2025-10-10T11:00:00.000Z",
+      "status": "filled"
+    },
+    {
+      "id": "trade_6",
+      "betId": "bet_3",
+      "userId": "user_7",
+      "position": "yes",
+      "percentage": 75,
+      "amount": 12,
+      "type": "taker",
+      "makerTradeId": "trade_4",
+      "timestamp": "2025-10-10T12:00:00.000Z",
+      "status": "filled"
+    }
   ]
 }
 

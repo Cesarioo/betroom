@@ -56,6 +56,26 @@ export default function Bet({
   const yesButtonOrders = openMakerOrders.filter((t) => t.position === 'no'); // NO makers show on YES button
   const noButtonOrders = openMakerOrders.filter((t) => t.position === 'yes'); // YES makers show on NO button
 
+  // Calculate weighted mid price between YES and NO sides (like OB mid)
+  const calculateWeightedPercentage = () => {
+    if (openMakerOrders.length === 0) return percentage; // fallback to prop if no open orders
+    
+    // Calculate weighted average, normalizing NO positions to YES equivalent
+    const totalWeightedPercentage = openMakerOrders.reduce((sum, order) => {
+      // For NO positions, convert to YES equivalent: 100 - percentage
+      const yesEquivalentPercentage = order.position === 'no' 
+        ? (100 - order.percentage) 
+        : order.percentage;
+      return sum + (order.amount * yesEquivalentPercentage);
+    }, 0);
+    
+    const totalAmount = openMakerOrders.reduce((sum, order) => sum + order.amount, 0);
+    
+    return totalAmount > 0 ? Math.round(totalWeightedPercentage / totalAmount) : percentage;
+  };
+
+  const displayPercentage = calculateWeightedPercentage();
+
   // Get current user (user_1)
   const currentUser = dbData.users.find((u) => u.id === 'user_1');
   
@@ -86,7 +106,7 @@ export default function Bet({
     console.log('Placing bet:', {
       choice: betChoice,
       amount: betAmount,
-      percentage: betChoice === 'yes' ? percentage : (100 - percentage)
+      percentage: betChoice === 'yes' ? displayPercentage : (100 - displayPercentage)
     });
     setBetAmount('');
     setIsBetDialogOpen(false);
@@ -186,16 +206,16 @@ export default function Bet({
               <div 
                 className="absolute bottom-0 w-full h-full border-t-4 border-l-4 border-r-4 rounded-t-full transition-all"
                 style={{
-                  borderColor: getColor(percentage),
-                  clipPath: `polygon(0 100%, 0 0, ${percentage}% 0, ${percentage}% 100%)`,
+                  borderColor: getColor(displayPercentage),
+                  clipPath: `polygon(0 100%, 0 0, ${displayPercentage}% 0, ${displayPercentage}% 100%)`,
                 }}
               />
               {/* Percentage text inside */}
               <span 
                 className="absolute bottom-0.5 text-xs sm:text-sm font-bold z-5"
-                style={{ color: getColor(percentage) }}
+                style={{ color: getColor(displayPercentage) }}
               >
-                {percentage}%
+                {displayPercentage}%
               </span>
             </div>
           </div>
@@ -307,7 +327,7 @@ export default function Bet({
         onOpenChange={setIsBetDialogOpen}
         title={title}
         betChoice={betChoice}
-        percentage={percentage}
+        percentage={displayPercentage}
         betAmount={betAmount}
         setBetAmount={setBetAmount}
         onPlaceBet={handlePlaceBet}
