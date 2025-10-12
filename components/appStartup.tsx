@@ -46,15 +46,19 @@ export default function AppStartup({ onComplete }: AppStartupProps) {
       setIsVisible(false);
       // After animation completes, call onComplete
       setTimeout(() => {
-        // Show PWA install prompt if available
-        if (deferredPromptRef.current) {
-          deferredPromptRef.current.prompt();
-          deferredPromptRef.current.userChoice.then((choiceResult) => {
-            console.log('User choice:', choiceResult.outcome);
-            deferredPromptRef.current = null;
-          });
-        }
         onComplete();
+        
+        // Wait an extra 500ms before showing PWA install prompt
+        // This ensures the browser is ready and prevents double prompt() issues
+        setTimeout(() => {
+          if (deferredPromptRef.current) {
+            deferredPromptRef.current.prompt();
+            deferredPromptRef.current.userChoice.then((choiceResult) => {
+              console.log('User choice:', choiceResult.outcome);
+              deferredPromptRef.current = null;
+            });
+          }
+        }, 500);
       }, 400); // Match faster animation duration
     }, 2000);
 
