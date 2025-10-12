@@ -36,7 +36,7 @@ const bets = [
   {
     id: 1,
     roomId: 1,
-    title: "Will it rain tomorrow in San Francisco?",
+    title: "Will it rain tomorrow in SF?",
     imageUrl: "https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=400&q=80",
     amountAtStake: 250,
     participants: [

@@ -60,7 +60,7 @@ export default function ProfilePage() {
   const betHistory = [
     {
       id: 1,
-      title: "Will it rain tomorrow in San Francisco?",
+      title: "Will it rain tomorrow in SF?",
       imageUrl: "https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=400&q=80",
       userChoice: 'yes' as const,
       boughtAt: 65,
@@ -378,26 +378,24 @@ export default function ProfilePage() {
                       </div>
 
                       {/* Bet Details */}
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-muted-foreground">Your Choice</span>
+                      <div className="space-y-1 text-xs">
+                        <div className="flex items-center gap-1">
+                          <span className="text-muted-foreground">You bought</span>
                           <span className={`font-semibold ${
                             bet.userChoice === 'yes' ? 'text-green-500' : 'text-red-500'
                           }`}>
                             {bet.userChoice.toUpperCase()}
                           </span>
+                          <span className="text-muted-foreground">at {bet.boughtAt}% for ${bet.amountBet}</span>
                         </div>
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-muted-foreground">Bought At</span>
-                          <span className="font-semibold text-foreground">{bet.boughtAt}%</span>
-                        </div>
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-muted-foreground">Final Outcome</span>
-                          <span className="font-semibold text-foreground">{bet.finalOutcome}%</span>
-                        </div>
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-muted-foreground">Amount Bet</span>
-                          <span className="font-semibold text-foreground">${bet.amountBet}</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-muted-foreground">Outcome:</span>
+                          <span className={`font-semibold ${
+                            bet.finalOutcome === 100 ? 'text-green-500' : 'text-red-500'
+                          }`}>
+                            {bet.finalOutcome === 100 ? 'YES' : 'NO'}
+                          </span>
+                          <span className="text-muted-foreground">({bet.finalOutcome}%)</span>
                         </div>
                       </div>
 

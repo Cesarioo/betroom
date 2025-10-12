@@ -119,7 +119,7 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
               {/* Title Input */}
               <textarea
                 ref={textareaRef}
-                placeholder="Will it rain tomorrow in San Francisco?"
+                placeholder="Will it rain tomorrow SF?"
                 value={betName}
                 onChange={(e) => setBetName(e.target.value)}
                 rows={1}
