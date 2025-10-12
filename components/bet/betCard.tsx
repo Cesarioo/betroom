@@ -47,6 +47,35 @@ export default function Bet({
   const betId = `bet_${id}`;
   const betTrades = dbData.trades.filter((t) => t.betId === betId);
 
+  // Calculate open interest (unfilled maker orders)
+  const openMakerOrders = betTrades.filter(
+    (t) => t.type === 'maker' && (t.status === 'open' || t.status === 'partially_filled')
+  );
+
+  // Group by position - remember: YES makers show on NO button and vice versa
+  const yesButtonOrders = openMakerOrders.filter((t) => t.position === 'no'); // NO makers show on YES button
+  const noButtonOrders = openMakerOrders.filter((t) => t.position === 'yes'); // YES makers show on NO button
+
+  // Get current user (user_1)
+  const currentUser = dbData.users.find((u) => u.id === 'user_1');
+  
+  // Get opponent and max available based on selected choice
+  const getOpponentAndMax = (choice: 'yes' | 'no') => {
+    const orders = choice === 'yes' ? yesButtonOrders : noButtonOrders;
+    if (orders.length === 0) {
+      return { opponent: null, maxAvailable: 0 };
+    }
+    
+    // Get the first order's user as opponent
+    const firstOrder = orders[0];
+    const opponent = dbData.users.find((u) => u.id === firstOrder.userId);
+    
+    // Calculate total available amount
+    const maxAvailable = orders.reduce((sum, order) => sum + order.amount, 0);
+    
+    return { opponent, maxAvailable };
+  };
+
   const handleBetClick = (choice: 'yes' | 'no') => {
     setBetChoice(choice);
     setSelectedAnswer(choice);
@@ -177,16 +206,42 @@ export default function Bet({
           <Button
             variant={selectedAnswer === 'yes' ? 'default' : 'outline'}
             onClick={() => handleBetClick('yes')}
-            className={`flex-1 ${selectedAnswer === 'yes' ? 'bg-green-600 hover:bg-green-700 border-green-600' : ''}`}
+            className={`flex-1 flex items-center justify-center gap-2 ${selectedAnswer === 'yes' ? 'bg-green-600 hover:bg-green-700 border-green-600' : ''}`}
           >
-            Yes
+            <span>Yes</span>
+            {yesButtonOrders.length > 0 && (
+              <div className="flex -space-x-1.5">
+                {yesButtonOrders.slice(0, 3).map((order) => {
+                  const user = dbData.users.find((u) => u.id === order.userId);
+                  return user ? (
+                    <Avatar key={order.id} className="w-4 h-4">
+                      <AvatarImage src={user.profileImage} alt={user.name} />
+                      <AvatarFallback className="text-[8px]">{user.name[0]}</AvatarFallback>
+                    </Avatar>
+                  ) : null;
+                })}
+              </div>
+            )}
           </Button>
           <Button
             variant={selectedAnswer === 'no' ? 'default' : 'outline'}
             onClick={() => handleBetClick('no')}
-            className={`flex-1 ${selectedAnswer === 'no' ? 'bg-red-600 hover:bg-red-700 border-red-600' : ''}`}
+            className={`flex-1 flex items-center justify-center gap-2 ${selectedAnswer === 'no' ? 'bg-red-600 hover:bg-red-700 border-red-600' : ''}`}
           >
-            No
+            <span>No</span>
+            {noButtonOrders.length > 0 && (
+              <div className="flex -space-x-1.5">
+                {noButtonOrders.slice(0, 3).map((order) => {
+                  const user = dbData.users.find((u) => u.id === order.userId);
+                  return user ? (
+                    <Avatar key={order.id} className="w-4 h-4">
+                      <AvatarImage src={user.profileImage} alt={user.name} />
+                      <AvatarFallback className="text-[8px]">{user.name[0]}</AvatarFallback>
+                    </Avatar>
+                  ) : null;
+                })}
+              </div>
+            )}
           </Button>
         </div>
 
@@ -256,6 +311,18 @@ export default function Bet({
         betAmount={betAmount}
         setBetAmount={setBetAmount}
         onPlaceBet={handlePlaceBet}
+        currentUser={{
+          name: currentUser?.name || 'You',
+          profileImage: currentUser?.profileImage || '',
+        }}
+        opponentUser={(() => {
+          const { opponent } = getOpponentAndMax(betChoice);
+          return opponent ? {
+            name: opponent.name,
+            profileImage: opponent.profileImage,
+          } : null;
+        })()}
+        maxAvailable={getOpponentAndMax(betChoice).maxAvailable}
       />
     </Card>
   );
