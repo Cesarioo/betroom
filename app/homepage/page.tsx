@@ -31,6 +31,14 @@ const rooms = [
   },
 ];
 
+// Helper function to generate future dates
+const getFutureDate = (daysFromNow: number, hour: number = 12) => {
+  const date = new Date();
+  date.setDate(date.getDate() + daysFromNow);
+  date.setHours(hour, 0, 0, 0);
+  return date.toISOString();
+};
+
 // Mock data for bets
 const bets = [
   {
@@ -44,7 +52,8 @@ const bets = [
       { name: 'Sarah', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah' },
       { name: 'Mike', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike' },
     ],
-    percentage: 65
+    percentage: 65,
+    expirationDate: getFutureDate(0, 18) // Today at 6 PM
   },
   {
     id: 2,
@@ -57,7 +66,8 @@ const bets = [
       { name: 'Sarah', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah' },
       { name: 'Mike', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike' },
     ],
-    percentage: 42
+    percentage: 42,
+    expirationDate: getFutureDate(18, 23) // 18 days from now at 11 PM
   },
   {
     id: 3,
@@ -70,7 +80,8 @@ const bets = [
       { name: 'Sarah', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah' },
       { name: 'Mike', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike' },
     ],
-    percentage: 33
+    percentage: 33,
+    expirationDate: getFutureDate(1, 9) // Tomorrow at 9 AM
   },
   {
     id: 4,
@@ -82,7 +93,8 @@ const bets = [
       { name: 'John', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John' },
       { name: 'Sarah', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah' },
     ],
-    percentage: 58
+    percentage: 58,
+    expirationDate: getFutureDate(5, 16) // 5 days from now at 4 PM
   },
   {
     id: 5,
@@ -94,7 +106,8 @@ const bets = [
       { name: 'John', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John' },
       { name: 'Mike', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike' },
     ],
-    percentage: 72
+    percentage: 72,
+    expirationDate: getFutureDate(15, 12) // 15 days from now at noon
   },
   {
     id: 6,
@@ -107,7 +120,8 @@ const bets = [
       { name: 'Alex', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex' },
       { name: 'Lisa', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Lisa' },
     ],
-    percentage: 78
+    percentage: 78,
+    expirationDate: getFutureDate(2, 20) // 2 days from now at 8 PM
   },
   {
     id: 7,
@@ -120,7 +134,8 @@ const bets = [
       { name: 'Alex', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex' },
       { name: 'Lisa', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Lisa' },
     ],
-    percentage: 55
+    percentage: 55,
+    expirationDate: getFutureDate(8, 14) // 8 days from now at 2 PM
   },
   {
     id: 8,
@@ -132,7 +147,8 @@ const bets = [
       { name: 'Emma', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Emma' },
       { name: 'Lisa', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Lisa' },
     ],
-    percentage: 45
+    percentage: 45,
+    expirationDate: getFutureDate(1, 15) // Tomorrow at 3 PM
   },
   {
     id: 9,
@@ -144,7 +160,8 @@ const bets = [
       { name: 'Emma', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Emma' },
       { name: 'Alex', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex' },
     ],
-    percentage: 67
+    percentage: 67,
+    expirationDate: getFutureDate(25, 10) // 25 days from now at 10 AM
   },
   {
     id: 10,
@@ -157,7 +174,8 @@ const bets = [
       { name: 'Alex', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex' },
       { name: 'Lisa', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Lisa' },
     ],
-    percentage: 88
+    percentage: 88,
+    expirationDate: getFutureDate(60, 12) // 60 days from now at noon
   }
 ];
 
@@ -334,6 +352,7 @@ export default function Homepage() {
               amountAtStake={bet.amountAtStake}
               participants={bet.participants}
               percentage={bet.percentage}
+              expirationDate={bet.expirationDate}
             />
           ))}
         </div>

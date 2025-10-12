@@ -18,6 +18,7 @@ interface BetProps {
   amountAtStake: number;
   participants: Participant[];
   percentage: number;
+  expirationDate: string;
 }
 
 export default function Bet({
@@ -26,6 +27,7 @@ export default function Bet({
   amountAtStake,
   participants,
   percentage,
+  expirationDate,
 }: BetProps) {
   const [selectedAnswer, setSelectedAnswer] = useState<'yes' | 'no' | null>(null);
 
@@ -37,6 +39,37 @@ export default function Bet({
     if (percentage <= 33) return 'rgb(239, 68, 68)'; // red-500
     if (percentage <= 66) return 'rgb(234, 179, 8)'; // yellow-500
     return 'rgb(34, 197, 94)'; // green-500
+  };
+
+  // Format expiration date
+  const formatExpirationDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = date.getTime() - now.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    // Format time
+    const time = date.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+    
+    // Format date based on proximity
+    if (diffDays === 0) {
+      return `Today ${time}`;
+    } else if (diffDays === 1) {
+      return `Tomorrow ${time}`;
+    } else if (diffDays < 7) {
+      const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+      return `${dayName} ${time}`;
+    } else {
+      const dateStr = date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric' 
+      });
+      return `${dateStr} ${time}`;
+    }
   };
 
   return (
@@ -102,12 +135,18 @@ export default function Bet({
           </Button>
         </div>
 
-        {/* Amount at Stake & Participants */}
+        {/* Stake, Expiration & Participants */}
         <div className="flex items-center justify-between pt-2">
-          {/* Amount at Stake */}
+          {/* Stake */}
           <div className="flex flex-col gap-0.5">
-            <span className="text-xs text-muted-foreground">Amount at stake</span>
+            <span className="text-xs text-muted-foreground">Stake</span>
             <span className="text-sm font-bold text-foreground">${amountAtStake}</span>
+          </div>
+
+          {/* Expiration */}
+          <div className="flex flex-col gap-0.5 items-center">
+            <span className="text-xs text-muted-foreground">Ends</span>
+            <span className="text-xs font-medium text-foreground">{formatExpirationDate(expirationDate)}</span>
           </div>
 
           {/* Participants */}

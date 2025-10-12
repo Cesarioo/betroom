@@ -28,6 +28,13 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Get browser timezone in GMT format
+  const getTimezone = () => {
+    const offset = -new Date().getTimezoneOffset() / 60;
+    const sign = offset >= 0 ? '+' : '';
+    return `GMT${sign}${offset}`;
+  };
+
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -189,7 +196,9 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
 
           {/* Expiration Date */}
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Expiration</label>
+            <label className="text-xs text-muted-foreground">
+              Expiration ({getTimezone()})
+            </label>
             <div className="relative">
               <Input
                 type="datetime-local"
