@@ -96,9 +96,9 @@ export default function Homepage() {
         </div>
 
         {/* Group Selector Slider */}
-        <div className="px-6 pb-4">
-          <div className="flex gap-6 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory">
-            {groups.map((group) => (
+        <div className="pb-4">
+          <div className="flex gap-6 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory pl-6">
+            {groups.map((group, index) => (
               <button
                 key={group.id}
                 onClick={() => setSelectedGroupId(group.id)}
@@ -106,7 +106,7 @@ export default function Homepage() {
                   selectedGroupId === group.id 
                     ? 'opacity-100 bg-red-900/30 border border-red-800/50' 
                     : 'opacity-60 hover:opacity-80 border border-transparent'
-                }`}
+                } ${index === groups.length - 1 ? 'mr-6' : ''}`}
               >
                 {/* Avatar Group */}
                 <div className="flex -space-x-3">
@@ -134,7 +134,7 @@ export default function Homepage() {
             {/* Add New Group Button */}
             <button 
               onClick={() => setIsAddGroupOpen(true)}
-              className="flex items-center gap-3 min-w-fit snap-start group opacity-60 hover:opacity-80 transition-opacity"
+              className="flex items-center gap-3 min-w-fit snap-start group opacity-60 hover:opacity-80 transition-opacity mr-6"
             >
               <div className="w-10 h-10 rounded-full border-2 border-dashed border-muted-foreground/50 flex items-center justify-center group-hover:border-primary group-hover:bg-primary/10 transition-all">
                 <Plus className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
