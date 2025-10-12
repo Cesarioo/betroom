@@ -70,6 +70,18 @@ export default function ProfilePage() {
     }
   };
 
+  // Cleanup blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (tempProfileImage.startsWith('blob:')) {
+        URL.revokeObjectURL(tempProfileImage);
+      }
+      if (profileImage.startsWith('blob:')) {
+        URL.revokeObjectURL(profileImage);
+      }
+    };
+  }, [tempProfileImage, profileImage]);
+
   // Mock PnL data (last 7 months)
   const pnlData = [
     { month: 'Apr', value: 120, isProfit: true },
