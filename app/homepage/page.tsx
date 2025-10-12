@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Plus } from 'lucide-react';
 import { useState, useRef } from 'react';
 import AddRoom from '@/components/addRoom';
+import CreateBet from '@/components/createBet';
 import Bet from '@/components/bet';
 
 // Mock data for rooms
@@ -163,6 +164,7 @@ const bets = [
 export default function Homepage() {
   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(1);
   const [isAddRoomOpen, setIsAddRoomOpen] = useState(false);
+  const [isCreateBetOpen, setIsCreateBetOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userCash, setUserCash] = useState(1250);
   const [userAtStake, setUserAtStake] = useState(450);
@@ -312,6 +314,17 @@ export default function Homepage() {
       {/* Main Content Area */}
       <main className="px-6 py-8">
         <div className="space-y-4">
+          {/* Create Bet Button */}
+          <button 
+            onClick={() => setIsCreateBetOpen(true)}
+            className="w-full border-2 border-dashed border-muted-foreground/30 rounded-lg py-4 flex items-center justify-center gap-2 hover:border-primary/50 hover:bg-primary/5 transition-all group"
+          >
+            <Plus className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+            <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+              Create a Bet
+            </span>
+          </button>
+          
           {filteredBets.map((bet) => (
             <Bet
               key={bet.id}
@@ -328,6 +341,9 @@ export default function Homepage() {
 
       {/* Add Room Dialog */}
       <AddRoom open={isAddRoomOpen} onOpenChange={setIsAddRoomOpen} />
+      
+      {/* Create Bet Dialog */}
+      <CreateBet open={isCreateBetOpen} onOpenChange={setIsCreateBetOpen} />
     </div>
   );
 }

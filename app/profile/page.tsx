@@ -1,19 +1,46 @@
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Settings, LogOut } from 'lucide-react';
+import { ArrowLeft, LogOut, ChevronDown, Pen, Check, X } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import Image from 'next/image';
 import { useState } from 'react';
 
 export default function ProfilePage() {
   const [selectedPoint, setSelectedPoint] = useState<number | null>(null);
+  const [showBetHistory, setShowBetHistory] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  
   // Mock user data
   const userCash = 1250;
   const userInBets = 450;
-  const userName = "Alex Johnson";
-  const userEmail = "alex.johnson@email.com";
+  const [userName, setUserName] = useState("Alex Johnson");
+  const [userEmail, setUserEmail] = useState("alex.johnson@email.com");
+  const [tempName, setTempName] = useState(userName);
+  const [tempEmail, setTempEmail] = useState(userEmail);
   const memberSince = "January 2024";
+
+  const handleEditClick = () => {
+    if (isEditing) {
+      // Save changes
+      setUserName(tempName);
+      setUserEmail(tempEmail);
+      setIsEditing(false);
+    } else {
+      // Start editing
+      setTempName(userName);
+      setTempEmail(userEmail);
+      setIsEditing(true);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setTempName(userName);
+    setTempEmail(userEmail);
+    setIsEditing(false);
+  };
 
   // Mock PnL data (last 7 months)
   const pnlData = [
@@ -29,6 +56,55 @@ export default function ProfilePage() {
   const maxValue = Math.max(...pnlData.map(d => Math.abs(d.value)));
   const totalPnL = pnlData.reduce((sum, d) => sum + d.value, 0);
 
+  // Mock bet history data
+  const betHistory = [
+    {
+      id: 1,
+      title: "Will it rain tomorrow in San Francisco?",
+      imageUrl: "https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=400&q=80",
+      userChoice: 'yes' as const,
+      boughtAt: 65,
+      finalOutcome: 100,
+      amountBet: 50,
+    },
+    {
+      id: 2,
+      title: "Will Bitcoin reach $100k by end of month?",
+      imageUrl: "https://images.unsplash.com/photo-1621416894569-0f39ed31d247?w=400&q=80",
+      userChoice: 'no' as const,
+      boughtAt: 42,
+      finalOutcome: 0,
+      amountBet: 100,
+    },
+    {
+      id: 3,
+      title: "Will finish the project before deadline",
+      imageUrl: "https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?w=400&q=80",
+      userChoice: 'yes' as const,
+      boughtAt: 33,
+      finalOutcome: 0,
+      amountBet: 75,
+    },
+    {
+      id: 4,
+      title: "Stock market will hit new high this week",
+      imageUrl: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=400&q=80",
+      userChoice: 'yes' as const,
+      boughtAt: 58,
+      finalOutcome: 100,
+      amountBet: 120,
+    },
+    {
+      id: 5,
+      title: "Lakers will win their next game",
+      imageUrl: "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=400&q=80",
+      userChoice: 'no' as const,
+      boughtAt: 78,
+      finalOutcome: 100,
+      amountBet: 80,
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -42,9 +118,7 @@ export default function ProfilePage() {
             <span className="text-sm font-medium">Back</span>
           </Link>
           <h1 className="text-lg font-semibold text-foreground">Profile</h1>
-          <button className="p-2 hover:bg-accent rounded-lg transition-colors">
-            <Settings className="w-5 h-5 text-muted-foreground" />
-          </button>
+          <div className="w-9"></div>
         </div>
       </div>
 
@@ -57,8 +131,61 @@ export default function ProfilePage() {
             <AvatarFallback className="text-2xl">U</AvatarFallback>
           </Avatar>
           <div className="flex-1">
-            <h2 className="text-xl font-bold text-foreground mb-1">{userName}</h2>
-            <p className="text-sm text-muted-foreground">{userEmail}</p>
+            {!isEditing ? (
+              <>
+                <h2 className="text-xl font-bold text-foreground mb-1">{userName}</h2>
+                <p className="text-sm text-muted-foreground">{userEmail}</p>
+              </>
+            ) : (
+              <>
+                <input
+                  type="text"
+                  value={tempName}
+                  onChange={(e) => setTempName(e.target.value)}
+                  className="text-xl font-bold text-foreground mb-1 bg-background border border-border rounded px-2 py-1 w-full focus:outline-none focus:border-primary"
+                  placeholder="Name"
+                />
+                <input
+                  type="email"
+                  value={tempEmail}
+                  onChange={(e) => setTempEmail(e.target.value)}
+                  className="text-sm text-muted-foreground bg-background border border-border rounded px-2 py-1 w-full focus:outline-none focus:border-primary"
+                  placeholder="Email"
+                />
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {!isEditing ? (
+              <>
+                <button 
+                  onClick={handleEditClick}
+                  className="p-2 hover:bg-accent rounded-lg transition-colors"
+                >
+                  <Pen className="w-5 h-5 text-muted-foreground hover:text-foreground" />
+                </button>
+                <Link href="/homepage">
+                  <button className="p-2 hover:bg-red-500/10 rounded-lg transition-colors">
+                    <LogOut className="w-5 h-5 text-red-500 hover:text-red-600" />
+                  </button>
+                </Link>
+              </>
+            ) : (
+              <>
+                <button 
+                  onClick={handleEditClick}
+                  className="p-2 hover:bg-green-500/10 rounded-lg transition-colors"
+                >
+                  <Check className="w-5 h-5 text-green-500 hover:text-green-600" />
+                </button>
+                <button 
+                  onClick={handleCancelEdit}
+                  className="p-2 hover:bg-red-500/10 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-red-500 hover:text-red-600" />
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -156,57 +283,139 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Statistics */}
-        <div className="bg-card border border-border rounded-lg p-6 mb-6">
-          <h3 className="text-lg font-semibold text-foreground mb-4">Statistics</h3>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Cash Available</span>
-              <span className="text-sm font-semibold text-foreground">${userCash}</span>
+        {/* Statistics / Bet History */}
+        <div className="bg-card border border-border rounded-lg p-6 mb-6 overflow-hidden">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-foreground">Statistics</h3>
+            <button
+              onClick={() => setShowBetHistory(!showBetHistory)}
+              className="flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-all"
+            >
+              <span className="transition-all">{showBetHistory ? 'Back' : 'See More'}</span>
+              <div className={`transition-transform duration-300 ${showBetHistory ? 'rotate-180' : ''}`}>
+                <ChevronDown className="w-4 h-4" />
+              </div>
+            </button>
+          </div>
+          
+          <div className="relative">
+            {/* Statistics View */}
+            <div className={`space-y-4 transition-all duration-300 ${
+              showBetHistory 
+                ? 'opacity-0 translate-y-[-20px] pointer-events-none absolute inset-0' 
+                : 'opacity-100 translate-y-0'
+            }`}>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Cash Available</span>
+                <span className="text-sm font-semibold text-foreground">${userCash}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">In Bets</span>
+                <span className="text-sm font-semibold text-foreground">${userInBets}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Total Bets</span>
+                <span className="text-sm font-semibold text-foreground">24</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Bets Won</span>
+                <span className="text-sm font-semibold text-green-500">16</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Bets Lost</span>
+                <span className="text-sm font-semibold text-red-500">8</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Win Rate</span>
+                <span className="text-sm font-semibold text-foreground">66.7%</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Rooms Joined</span>
+                <span className="text-sm font-semibold text-foreground">2</span>
+              </div>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">In Bets</span>
-              <span className="text-sm font-semibold text-foreground">${userInBets}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Total Bets</span>
-              <span className="text-sm font-semibold text-foreground">24</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Bets Won</span>
-              <span className="text-sm font-semibold text-green-500">16</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Bets Lost</span>
-              <span className="text-sm font-semibold text-red-500">8</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Win Rate</span>
-              <span className="text-sm font-semibold text-foreground">66.7%</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Rooms Joined</span>
-              <span className="text-sm font-semibold text-foreground">2</span>
+
+            {/* Bet History View */}
+            <div className={`space-y-4 transition-all duration-300 ${
+              showBetHistory 
+                ? 'opacity-100 translate-y-0' 
+                : 'opacity-0 translate-y-[-20px] pointer-events-none absolute inset-0'
+            }`}>
+              {betHistory.map((bet) => {
+                const won = (bet.userChoice === 'yes' && bet.finalOutcome === 100) || 
+                            (bet.userChoice === 'no' && bet.finalOutcome === 0);
+                const pnl = won ? bet.amountBet * (100 / bet.boughtAt - 1) : -bet.amountBet;
+                
+                return (
+                  <Card key={bet.id} className="w-full">
+                    <CardContent className="p-3 space-y-2">
+                      {/* Top Row: Image, Title, and Outcome Badge */}
+                      <div className="flex items-center gap-3">
+                        {/* Square Image */}
+                        <div className="relative w-16 h-16 rounded-md overflow-hidden bg-muted flex-shrink-0">
+                          <Image
+                            src={bet.imageUrl}
+                            alt={bet.title}
+                            fill
+                            className="object-cover"
+                            sizes="64px"
+                          />
+                        </div>
+
+                        {/* Title and Outcome */}
+                        <div className="flex-1 flex items-center justify-between gap-3">
+                          <h3 className="text-sm font-semibold text-foreground line-clamp-2 flex-1">
+                            {bet.title}
+                          </h3>
+                          
+                          {/* Outcome Badge */}
+                          <div className={`px-3 py-1 rounded-full text-xs font-bold ${
+                            won ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'
+                          }`}>
+                            {won ? 'WON' : 'LOST'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Bet Details */}
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-muted-foreground">Your Choice</span>
+                          <span className={`font-semibold ${
+                            bet.userChoice === 'yes' ? 'text-green-500' : 'text-red-500'
+                          }`}>
+                            {bet.userChoice.toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-muted-foreground">Bought At</span>
+                          <span className="font-semibold text-foreground">{bet.boughtAt}%</span>
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-muted-foreground">Final Outcome</span>
+                          <span className="font-semibold text-foreground">{bet.finalOutcome}%</span>
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-muted-foreground">Amount Bet</span>
+                          <span className="font-semibold text-foreground">${bet.amountBet}</span>
+                        </div>
+                      </div>
+
+                      {/* PnL */}
+                      <div className="pt-2 border-t border-border flex justify-between items-center">
+                        <span className="text-xs text-muted-foreground">Profit/Loss</span>
+                        <span className={`text-sm font-bold ${
+                          pnl >= 0 ? 'text-green-500' : 'text-red-500'
+                        }`}>
+                          {pnl >= 0 ? '+' : ''}{pnl >= 0 ? '$' : '-$'}{Math.abs(pnl).toFixed(2)}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="space-y-3">
-          <Button 
-            variant="outline" 
-            className="w-full justify-start gap-3"
-          >
-            <Settings className="w-4 h-4" />
-            Account Settings
-          </Button>
-          <Button 
-            variant="outline" 
-            className="w-full justify-start gap-3 text-red-500 hover:text-red-500 hover:bg-red-500/10"
-          >
-            <LogOut className="w-4 h-4" />
-            Log Out
-          </Button>
         </div>
       </div>
     </div>
