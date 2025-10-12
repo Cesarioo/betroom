@@ -35,6 +35,15 @@ export default function AddGroup({ open, onOpenChange }: AddGroupProps) {
     }
   };
 
+  const handleFocus = (index: number) => {
+    // If all boxes are empty and user clicks on any box other than the first
+    const allEmpty = inviteCode.every(digit => digit === '');
+    if (allEmpty && index !== 0) {
+      const inputs = document.querySelectorAll<HTMLInputElement>('.code-input');
+      inputs[0]?.focus();
+    }
+  };
+
   const handleChange = (index: number, value: string) => {
     // Only allow single digit numbers
     if (value && !/^[0-9]$/.test(value)) return;
@@ -78,7 +87,10 @@ export default function AddGroup({ open, onOpenChange }: AddGroupProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-2rem)] max-w-[400px]">
+      <DialogContent 
+        className="w-[calc(100vw-2rem)] max-w-[400px]"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>Add Group</DialogTitle>
           <DialogDescription>
@@ -99,6 +111,7 @@ export default function AddGroup({ open, onOpenChange }: AddGroupProps) {
                   value={inviteCode[index]}
                   onChange={(e) => handleChange(index, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(index, e)}
+                  onFocus={() => handleFocus(index)}
                   onPaste={handlePaste}
                   autoFocus={false}
                   className="code-input w-10 h-12 sm:w-14 sm:h-16 text-center text-lg sm:text-2xl font-bold border-2 border-input bg-background rounded-md focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-400/50 transition-all"
@@ -120,6 +133,7 @@ export default function AddGroup({ open, onOpenChange }: AddGroupProps) {
                   value={inviteCode[index]}
                   onChange={(e) => handleChange(index, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(index, e)}
+                  onFocus={() => handleFocus(index)}
                   onPaste={handlePaste}
                   autoFocus={false}
                   className="code-input w-10 h-12 sm:w-14 sm:h-16 text-center text-lg sm:text-2xl font-bold border-2 border-input bg-background rounded-md focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-400/50 transition-all"

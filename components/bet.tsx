@@ -32,8 +32,12 @@ export default function Bet({
   const displayedParticipants = participants.slice(0, 5);
   const remainingCount = Math.max(0, participants.length - 5);
 
-  // Calculate the rotation for the half circle
-  const rotation = (percentage / 100) * 180;
+  // Calculate color based on percentage (red to green gradient)
+  const getColor = (percentage: number) => {
+    if (percentage <= 33) return 'rgb(239, 68, 68)'; // red-500
+    if (percentage <= 66) return 'rgb(234, 179, 8)'; // yellow-500
+    return 'rgb(34, 197, 94)'; // green-500
+  };
 
   return (
     <Card className="w-full">
@@ -58,19 +62,24 @@ export default function Bet({
             </h3>
             
             {/* Half Circle Progress */}
-            <div className="flex flex-col items-center gap-1 flex-shrink-0">
-              <div className="relative w-12 h-6 sm:w-14 sm:h-7">
-                {/* Background half circle */}
-                <div className="absolute inset-0 border-4 border-muted rounded-t-full" />
-                {/* Progress half circle */}
-                <div 
-                  className="absolute inset-0 border-4 border-primary rounded-t-full origin-bottom transition-all"
-                  style={{
-                    clipPath: `polygon(0 100%, 0 0, ${percentage}% 0, ${percentage}% 100%)`,
-                  }}
-                />
-              </div>
-              <span className="text-xs font-bold text-foreground">{percentage}%</span>
+            <div className="relative flex items-end justify-center flex-shrink-0 w-16 h-8 sm:w-20 sm:h-10">
+              {/* Background half circle */}
+              <div className="absolute bottom-0 w-full h-full border-t-4 border-l-4 border-r-4 border-muted rounded-t-full" />
+              {/* Progress half circle */}
+              <div 
+                className="absolute bottom-0 w-full h-full border-t-4 border-l-4 border-r-4 rounded-t-full transition-all"
+                style={{
+                  borderColor: getColor(percentage),
+                  clipPath: `polygon(0 100%, 0 0, ${percentage}% 0, ${percentage}% 100%)`,
+                }}
+              />
+              {/* Percentage text inside */}
+              <span 
+                className="absolute bottom-0.5 text-xs sm:text-sm font-bold z-10"
+                style={{ color: getColor(percentage) }}
+              >
+                {percentage}%
+              </span>
             </div>
           </div>
         </div>
@@ -94,7 +103,7 @@ export default function Bet({
         </div>
 
         {/* Amount at Stake & Participants */}
-        <div className="flex items-center justify-between pt-2 border-t border-border">
+        <div className="flex items-center justify-between pt-2">
           {/* Amount at Stake */}
           <div className="flex flex-col gap-0.5">
             <span className="text-xs text-muted-foreground">Amount at stake</span>

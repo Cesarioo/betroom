@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import AddGroup from '@/components/addGroup';
 import Bet from '@/components/bet';
 
@@ -163,11 +163,35 @@ const bets = [
 export default function Homepage() {
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(1);
   const [isAddGroupOpen, setIsAddGroupOpen] = useState(false);
+  const groupRefs = useRef<{ [key: number]: HTMLButtonElement | null }>({});
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Filter bets by selected group
   const filteredBets = selectedGroupId 
     ? bets.filter(bet => bet.groupId === selectedGroupId)
     : bets;
+
+  const handleGroupSelect = (groupId: number) => {
+    setSelectedGroupId(groupId);
+    
+    // Scroll the selected group to the left
+    const groupElement = groupRefs.current[groupId];
+    const scrollContainer = scrollContainerRef.current;
+    
+    if (groupElement && scrollContainer) {
+      const containerLeft = scrollContainer.getBoundingClientRect().left;
+      const elementLeft = groupElement.getBoundingClientRect().left;
+      const scrollLeft = scrollContainer.scrollLeft;
+      
+      // Calculate the target scroll position (with some padding)
+      const targetScroll = scrollLeft + (elementLeft - containerLeft) - 24; // 24px padding
+      
+      scrollContainer.scrollTo({
+        left: targetScroll,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -206,11 +230,15 @@ export default function Homepage() {
 
       {/* Sticky Group Selector */}
       <div className="sticky top-0 z-10 w-full border-b border-border bg-background">
-          <div className="flex gap-6 overflow-x-auto py-4 scrollbar-hide snap-x snap-mandatory">
+          <div 
+            ref={scrollContainerRef}
+            className="flex gap-6 overflow-x-auto py-4 scrollbar-hide snap-x snap-mandatory"
+          >
             {groups.map((group, index) => (
               <button
                 key={group.id}
-                onClick={() => setSelectedGroupId(group.id)}
+                ref={(el) => { groupRefs.current[group.id] = el; }}
+                onClick={() => handleGroupSelect(group.id)}
                 className={`flex items-center gap-3 min-w-fit snap-start group transition-all rounded-full px-4 py-2 ${
                   selectedGroupId === group.id 
                     ? 'opacity-100 bg-red-900/30 border border-red-800/50' 
