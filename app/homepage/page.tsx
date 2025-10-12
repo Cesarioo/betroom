@@ -243,10 +243,12 @@ export default function Homepage() {
                 <span className="text-xs text-muted-foreground">In Bets</span>
                 <span className="text-sm sm:text-base font-bold text-foreground">${userAtStake}</span>
               </div>
-              <Avatar className="w-10 h-10 cursor-pointer hover:opacity-80 transition-opacity">
-                <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=User" alt="Profile" />
-                <AvatarFallback>U</AvatarFallback>
-              </Avatar>
+              <Link href="/profile">
+                <Avatar className="w-10 h-10 cursor-pointer hover:opacity-80 transition-opacity">
+                  <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=User" alt="Profile" />
+                  <AvatarFallback>U</AvatarFallback>
+                </Avatar>
+              </Link>
             </div>
           )}
         </div>
