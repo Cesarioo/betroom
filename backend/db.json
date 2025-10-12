@@ -1,0 +1,258 @@
+{
+  "users": [
+    {
+      "id": "user_1",
+      "name": "You",
+      "email": "alex.johnson@email.com",
+      "profileImage": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&q=80",
+      "cash": 1250
+    },
+    {
+      "id": "user_2",
+      "name": "John",
+      "email": "john.smith@email.com",
+      "profileImage": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80",
+      "cash": 800
+    },
+    {
+      "id": "user_3",
+      "name": "Sarah",
+      "email": "sarah.jones@email.com",
+      "profileImage": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&q=80",
+      "cash": 1500
+    },
+    {
+      "id": "user_4",
+      "name": "Mike",
+      "email": "mike.wilson@email.com",
+      "profileImage": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&q=80",
+      "cash": 950
+    },
+    {
+      "id": "user_5",
+      "name": "Emma",
+      "email": "emma.davis@email.com",
+      "profileImage": "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&q=80",
+      "cash": 1200
+    },
+    {
+      "id": "user_6",
+      "name": "Alex",
+      "email": "alex.brown@email.com",
+      "profileImage": "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&q=80",
+      "cash": 700
+    },
+    {
+      "id": "user_7",
+      "name": "Lisa",
+      "email": "lisa.taylor@email.com",
+      "profileImage": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&q=80",
+      "cash": 1100
+    }
+  ],
+  "rooms": [
+    {
+      "id": "room_0",
+      "name": "My Room",
+      "isPersonal": true,
+      "members": ["user_1"]
+    },
+    {
+      "id": "room_1",
+      "name": "Work Room",
+      "members": ["user_2", "user_3", "user_4"]
+    },
+    {
+      "id": "room_2",
+      "name": "Friends Room",
+      "members": ["user_5", "user_6", "user_7"]
+    }
+  ],
+  "bets": [
+    {
+      "id": "bet_1",
+      "roomId": "room_0",
+      "title": "Will I finish my personal project by Friday?",
+      "imageUrl": "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400&q=80",
+      "expirationDate": "2025-10-15T17:00:00.000Z",
+      "createdBy": "user_1",
+      "createdAt": "2025-10-10T10:00:00.000Z"
+    },
+    {
+      "id": "bet_2",
+      "roomId": "room_0",
+      "title": "Will I exercise 5 times this week?",
+      "imageUrl": "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=400&q=80",
+      "expirationDate": "2025-10-18T23:00:00.000Z",
+      "createdBy": "user_1",
+      "createdAt": "2025-10-10T12:00:00.000Z"
+    },
+    {
+      "id": "bet_3",
+      "roomId": "room_1",
+      "title": "Will it rain tomorrow in SF?",
+      "imageUrl": "https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=400&q=80",
+      "expirationDate": "2025-10-12T18:00:00.000Z",
+      "createdBy": "user_2",
+      "createdAt": "2025-10-11T09:00:00.000Z"
+    },
+    {
+      "id": "bet_4",
+      "roomId": "room_1",
+      "title": "Will Bitcoin reach $100k by end of month?",
+      "imageUrl": "https://images.unsplash.com/photo-1621416894569-0f39ed31d247?w=400&q=80",
+      "expirationDate": "2025-10-30T23:00:00.000Z",
+      "createdBy": "user_3",
+      "createdAt": "2025-10-01T10:00:00.000Z"
+    },
+    {
+      "id": "bet_5",
+      "roomId": "room_1",
+      "title": "Will finish the project before deadline",
+      "imageUrl": "https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?w=400&q=80",
+      "expirationDate": "2025-10-13T09:00:00.000Z",
+      "createdBy": "user_4",
+      "createdAt": "2025-10-10T14:00:00.000Z"
+    },
+    {
+      "id": "bet_6",
+      "roomId": "room_1",
+      "title": "Stock market will hit new high this week",
+      "imageUrl": "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=400&q=80",
+      "expirationDate": "2025-10-17T16:00:00.000Z",
+      "createdBy": "user_2",
+      "createdAt": "2025-10-12T08:00:00.000Z"
+    },
+    {
+      "id": "bet_7",
+      "roomId": "room_1",
+      "title": "CEO will announce layoffs this month",
+      "imageUrl": "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=400&q=80",
+      "expirationDate": "2025-10-27T12:00:00.000Z",
+      "createdBy": "user_3",
+      "createdAt": "2025-10-08T11:00:00.000Z"
+    },
+    {
+      "id": "bet_8",
+      "roomId": "room_2",
+      "title": "Lakers will win their next game",
+      "imageUrl": "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=400&q=80",
+      "expirationDate": "2025-10-14T20:00:00.000Z",
+      "createdBy": "user_5",
+      "createdAt": "2025-10-11T15:00:00.000Z"
+    },
+    {
+      "id": "bet_9",
+      "roomId": "room_2",
+      "title": "New iPhone will be announced next week",
+      "imageUrl": "https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?w=400&q=80",
+      "expirationDate": "2025-10-20T14:00:00.000Z",
+      "createdBy": "user_6",
+      "createdAt": "2025-10-10T16:00:00.000Z"
+    },
+    {
+      "id": "bet_10",
+      "roomId": "room_2",
+      "title": "Will get concert tickets before they sell out",
+      "imageUrl": "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400&q=80",
+      "expirationDate": "2025-10-13T15:00:00.000Z",
+      "createdBy": "user_7",
+      "createdAt": "2025-10-12T10:00:00.000Z"
+    },
+    {
+      "id": "bet_11",
+      "roomId": "room_2",
+      "title": "New restaurant will open by next month",
+      "imageUrl": "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80",
+      "expirationDate": "2025-11-06T10:00:00.000Z",
+      "createdBy": "user_5",
+      "createdAt": "2025-10-10T13:00:00.000Z"
+    },
+    {
+      "id": "bet_12",
+      "roomId": "room_2",
+      "title": "Summer vacation trip will happen",
+      "imageUrl": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&q=80",
+      "expirationDate": "2025-12-11T12:00:00.000Z",
+      "createdBy": "user_6",
+      "createdAt": "2025-10-10T17:00:00.000Z"
+    }
+  ],
+  "trades": [
+    {
+      "id": "trade_1",
+      "betId": "bet_3",
+      "userId": "user_1",
+      "position": "yes",
+      "percentage": 70,
+      "amount": 100,
+      "type": "maker",
+      "makerTradeId": null,
+      "timestamp": "2025-10-10T10:00:00.000Z",
+      "status": "partially_filled"
+    },
+    {
+      "id": "trade_2",
+      "betId": "bet_3",
+      "userId": "user_2",
+      "position": "no",
+      "percentage": 30,
+      "amount": 18,
+      "type": "taker",
+      "makerTradeId": "trade_1",
+      "timestamp": "2025-10-10T11:00:00.000Z",
+      "status": "filled"
+    },
+    {
+      "id": "trade_3",
+      "betId": "bet_3",
+      "userId": "user_3",
+      "position": "no",
+      "percentage": 30,
+      "amount": 12,
+      "type": "taker",
+      "makerTradeId": "trade_1",
+      "timestamp": "2025-10-10T12:00:00.000Z",
+      "status": "filled"
+    },
+
+    {
+        "id": "trade_4",
+        "betId": "bet_3",
+        "userId": "user_5",
+        "position": "no",
+        "percentage": 70,
+        "amount": 100,
+        "type": "maker",
+        "makerTradeId": null,
+        "timestamp": "2025-11-10T10:00:00.000Z",
+        "status": "partially_filled"
+      },
+      {
+        "id": "trade_5",
+        "betId": "bet_3",
+        "userId": "user_6",
+        "position": "yes",
+        "percentage": 30,
+        "amount": 18,
+        "type": "taker",
+        "makerTradeId": "trade_4",
+        "timestamp": "2025-10-10T11:00:00.000Z",
+        "status": "filled"
+      },
+      {
+        "id": "trade_6",
+        "betId": "bet_3",
+        "userId": "user_7",
+        "position": "yes",
+        "percentage": 30,
+        "amount": 12,
+        "type": "taker",
+        "makerTradeId": "trade_4",
+        "timestamp": "2025-10-10T12:00:00.000Z",
+        "status": "filled"
+      }
+    
+  ]
+}
+

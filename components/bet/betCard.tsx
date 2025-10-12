@@ -5,15 +5,10 @@ import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import dbData from '@/backend/db.json';
+import BetDialog from './betDialog';
+import BetParticipants from './betParticipants';
 
 interface Participant {
   name: string;
@@ -31,6 +26,7 @@ interface BetProps {
 }
 
 export default function Bet({
+  id,
   title,
   imageUrl,
   amountAtStake,
@@ -42,36 +38,19 @@ export default function Bet({
   const [isBetDialogOpen, setIsBetDialogOpen] = useState(false);
   const [betAmount, setBetAmount] = useState('');
   const [betChoice, setBetChoice] = useState<'yes' | 'no'>('yes');
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const displayedParticipants = participants.slice(0, 5);
   const remainingCount = Math.max(0, participants.length - 5);
+
+  // Get all trades for this bet
+  const betId = `bet_${id}`;
+  const betTrades = dbData.trades.filter((t) => t.betId === betId);
 
   const handleBetClick = (choice: 'yes' | 'no') => {
     setBetChoice(choice);
     setSelectedAnswer(choice);
     setIsBetDialogOpen(true);
-  };
-
-  const calculatePotentialEarnings = () => {
-    const amount = parseFloat(betAmount) || 0;
-    if (amount <= 0) return { total: 0, profit: 0 };
-
-    let potentialReturn = 0;
-    if (betChoice === 'yes') {
-      // If betting YES, you pay the percentage price
-      // If YES wins, you get $1 per share
-      potentialReturn = (100 / percentage) * amount;
-    } else {
-      // If betting NO, you pay (100 - percentage) price
-      // If NO wins, you get $1 per share
-      potentialReturn = (100 / (100 - percentage)) * amount;
-    }
-
-    const profit = potentialReturn - amount;
-    return {
-      total: potentialReturn,
-      profit: profit
-    };
   };
 
   const handlePlaceBet = () => {
@@ -83,8 +62,6 @@ export default function Bet({
     setBetAmount('');
     setIsBetDialogOpen(false);
   };
-
-  const earnings = calculatePotentialEarnings();
 
   // Calculate color based on percentage (red to green gradient)
   const getColor = (percentage: number) => {
@@ -141,10 +118,36 @@ export default function Bet({
           </div>
 
           {/* Title and Half Circle */}
-          <div className="flex-1 flex items-center justify-between gap-3">
-            <h3 className="text-sm sm:text-base font-semibold text-foreground line-clamp-2 flex-1">
-              {title}
-            </h3>
+          <div className="flex-1 flex items-start justify-between gap-3">
+            <div className="flex flex-col gap-1 flex-1 min-w-0">
+              <h3 className="text-sm sm:text-base font-semibold text-foreground line-clamp-2">
+                {title}
+              </h3>
+
+              {/* Participants betting text */}
+              <div className="flex items-center gap-2">
+                <div className="flex -space-x-2">
+                  {participants.slice(0, 3).map((participant, idx) => (
+                    <Avatar key={idx} className="w-5 h-5">
+                      <AvatarImage src={participant.image} alt={participant.name} />
+                      <AvatarFallback className="text-[8px]">
+                        {participant.name[0]}
+                      </AvatarFallback>
+                    </Avatar>
+                  ))}
+                </div>
+                <span className="text-[10px] text-muted-foreground">
+                  {participants.length > 0 && (
+                    <>
+                      {participants[0]?.name}
+                      {participants.length > 1 && `, ${participants[1]?.name}`}
+                      {participants.length > 2 && ' and others'}
+                      {' are betting!'}
+                    </>
+                  )}
+                </span>
+              </div>
+            </div>
             
             {/* Half Circle Progress */}
             <div className="relative flex items-end justify-center flex-shrink-0 w-16 h-8 sm:w-20 sm:h-10">
@@ -203,7 +206,19 @@ export default function Bet({
 
           {/* Participants */}
           <div className="flex flex-col items-end gap-0.5">
-            <span className="text-xs text-muted-foreground">Participants</span>
+            <button 
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="flex items-center gap-1 group"
+            >
+              <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
+                Participants
+              </span>
+              {isExpanded ? (
+                <ChevronUp className="w-3 h-3 text-muted-foreground group-hover:text-foreground transition-colors" />
+              ) : (
+                <ChevronDown className="w-3 h-3 text-muted-foreground group-hover:text-foreground transition-colors" />
+              )}
+            </button>
             <div className="flex items-center gap-1">
               <div className="flex -space-x-2">
                 {displayedParticipants.map((participant, idx) => (
@@ -223,86 +238,25 @@ export default function Bet({
             </div>
           </div>
         </div>
+
+        {/* Expanded Participants View */}
+        <BetParticipants 
+          isExpanded={isExpanded}
+          betTrades={betTrades}
+        />
       </CardContent>
 
       {/* Bet Dialog */}
-      <Dialog open={isBetDialogOpen} onOpenChange={setIsBetDialogOpen}>
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle>
-              Place Your Bet - {betChoice === 'yes' ? 'YES' : 'NO'}
-            </DialogTitle>
-            <DialogDescription>
-              {title}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            {/* Current Odds */}
-            <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-              <span className="text-sm text-muted-foreground">
-                {betChoice === 'yes' ? 'YES' : 'NO'} at
-              </span>
-              <span className="text-lg font-bold text-foreground">
-                {betChoice === 'yes' ? percentage : (100 - percentage)}%
-              </span>
-            </div>
-
-            {/* Amount Input */}
-            <div className="space-y-2">
-              <label className="text-sm text-muted-foreground">Amount to bet</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={betAmount}
-                  onChange={(e) => setBetAmount(e.target.value)}
-                  className="pl-7"
-                  min="0"
-                />
-              </div>
-            </div>
-
-            {/* Potential Earnings */}
-            {parseFloat(betAmount) > 0 && (
-              <div className="space-y-2 p-4 bg-primary/5 border border-primary/20 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Potential return</span>
-                  <span className="text-base font-semibold text-foreground">
-                    ${earnings.total.toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Potential profit</span>
-                  <span className={`text-base font-bold ${earnings.profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                    +${earnings.profit.toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter className="sm:justify-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setBetAmount('');
-                setIsBetDialogOpen(false);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handlePlaceBet}
-              disabled={!betAmount || parseFloat(betAmount) <= 0}
-              className={betChoice === 'yes' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}
-            >
-              Place Bet
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <BetDialog
+        isOpen={isBetDialogOpen}
+        onOpenChange={setIsBetDialogOpen}
+        title={title}
+        betChoice={betChoice}
+        percentage={percentage}
+        betAmount={betAmount}
+        setBetAmount={setBetAmount}
+        onPlaceBet={handlePlaceBet}
+      />
     </Card>
   );
 }

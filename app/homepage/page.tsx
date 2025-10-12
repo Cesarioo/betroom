@@ -7,195 +7,94 @@ import { Plus } from 'lucide-react';
 import { useState, useRef } from 'react';
 import AddRoom from '@/components/addRoom';
 import CreateBet from '@/components/createBet';
-import Bet from '@/components/bet';
+import Bet from '@/components/bet/betCard';
+import dbData from '@/backend/db.json';
 
-// Mock data for rooms
-const rooms = [
-  {
-    id: 1,
-    name: 'Work Room',
-    members: [
-      { name: 'John', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80' },
-      { name: 'Sarah', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&q=80' },
-      { name: 'Mike', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&q=80' },
-    ]
-  },
-  {
-    id: 2,
-    name: 'Friends Room',
-    members: [
-      { name: 'Emma', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&q=80' },
-      { name: 'Alex', image: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&q=80' },
-      { name: 'Lisa', image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&q=80' },
-    ]
-  },
-];
+// Process data from database
+const processRoomsAndBets = () => {
+  const { users, rooms, bets, trades } = dbData;
+  
+  // Process rooms with member details
+  const processedRooms = rooms.map((room) => ({
+    id: room.id === 'room_0' ? 0 : room.id === 'room_1' ? 1 : 2,
+    name: room.name,
+    isPersonal: room.isPersonal,
+    members: room.members.map((userId) => {
+      const user = users.find((u) => u.id === userId);
+      return user ? { name: user.name, image: user.profileImage } : { name: '', image: '' };
+    }),
+  }));
 
-// Helper function to generate future dates
-const getFutureDate = (daysFromNow: number, hour: number = 12) => {
-  const date = new Date();
-  date.setDate(date.getDate() + daysFromNow);
-  date.setHours(hour, 0, 0, 0);
-  return date.toISOString();
+  // Calculate stake and participants for each bet
+  const processedBets = bets.map((bet) => {
+    const betTrades = trades.filter((t) => t.betId === bet.id);
+    const totalStake = betTrades.reduce((sum, t) => sum + t.amount, 0);
+    
+    // Get unique participants
+    const uniqueUserIds = [...new Set(betTrades.map((t) => t.userId))];
+    const participants = uniqueUserIds.map((userId) => {
+      const user = users.find((u) => u.id === userId);
+      return user ? { name: user.name, image: user.profileImage } : { name: '', image: '' };
+    });
+
+    // Calculate current percentage (latest trade percentage for simplicity)
+    const latestTrade = betTrades.length > 0 ? betTrades[betTrades.length - 1] : null;
+    const currentPercentage = latestTrade ? latestTrade.percentage : 50;
+
+    return {
+      id: parseInt(bet.id.replace('bet_', '')),
+      roomId: bet.roomId === 'room_0' ? 0 : bet.roomId === 'room_1' ? 1 : 2,
+      title: bet.title,
+      imageUrl: bet.imageUrl,
+      amountAtStake: totalStake,
+      participants,
+      percentage: currentPercentage,
+      expirationDate: bet.expirationDate,
+    };
+  });
+
+  return { rooms: processedRooms, bets: processedBets };
 };
 
-// Mock data for bets
-const bets = [
-  {
-    id: 1,
-    roomId: 1,
-    title: "Will it rain tomorrow in SF?",
-    imageUrl: "https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=400&q=80",
-    amountAtStake: 250,
-    participants: [
-      { name: 'John', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80' },
-      { name: 'Sarah', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&q=80' },
-      { name: 'Mike', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&q=80' },
-    ],
-    percentage: 65,
-    expirationDate: getFutureDate(0, 18) // Today at 6 PM
-  },
-  {
-    id: 2,
-    roomId: 1,
-    title: "Will Bitcoin reach $100k by end of month?",
-    imageUrl: "https://images.unsplash.com/photo-1621416894569-0f39ed31d247?w=400&q=80",
-    amountAtStake: 500,
-    participants: [
-      { name: 'John', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80' },
-      { name: 'Sarah', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&q=80' },
-      { name: 'Mike', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&q=80' },
-    ],
-    percentage: 42,
-    expirationDate: getFutureDate(18, 23) // 18 days from now at 11 PM
-  },
-  {
-    id: 3,
-    roomId: 1,
-    title: "Will finish the project before deadline",
-    imageUrl: "https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?w=400&q=80",
-    amountAtStake: 100,
-    participants: [
-      { name: 'John', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80' },
-      { name: 'Sarah', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&q=80' },
-      { name: 'Mike', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&q=80' },
-    ],
-    percentage: 33,
-    expirationDate: getFutureDate(1, 9) // Tomorrow at 9 AM
-  },
-  {
-    id: 4,
-    roomId: 1,
-    title: "Stock market will hit new high this week",
-    imageUrl: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=400&q=80",
-    amountAtStake: 400,
-    participants: [
-      { name: 'John', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80' },
-      { name: 'Sarah', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&q=80' },
-    ],
-    percentage: 58,
-    expirationDate: getFutureDate(5, 16) // 5 days from now at 4 PM
-  },
-  {
-    id: 5,
-    roomId: 1,
-    title: "CEO will announce layoffs this month",
-    imageUrl: "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=400&q=80",
-    amountAtStake: 200,
-    participants: [
-      { name: 'John', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80' },
-      { name: 'Mike', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&q=80' },
-    ],
-    percentage: 72,
-    expirationDate: getFutureDate(15, 12) // 15 days from now at noon
-  },
-  {
-    id: 6,
-    roomId: 2,
-    title: "Lakers will win their next game",
-    imageUrl: "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=400&q=80",
-    amountAtStake: 150,
-    participants: [
-      { name: 'Emma', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&q=80' },
-      { name: 'Alex', image: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&q=80' },
-      { name: 'Lisa', image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&q=80' },
-    ],
-    percentage: 78,
-    expirationDate: getFutureDate(2, 20) // 2 days from now at 8 PM
-  },
-  {
-    id: 7,
-    roomId: 2,
-    title: "New iPhone will be announced next week",
-    imageUrl: "https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?w=400&q=80",
-    amountAtStake: 320,
-    participants: [
-      { name: 'Emma', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&q=80' },
-      { name: 'Alex', image: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&q=80' },
-      { name: 'Lisa', image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&q=80' },
-    ],
-    percentage: 55,
-    expirationDate: getFutureDate(8, 14) // 8 days from now at 2 PM
-  },
-  {
-    id: 8,
-    roomId: 2,
-    title: "Will get concert tickets before they sell out",
-    imageUrl: "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400&q=80",
-    amountAtStake: 180,
-    participants: [
-      { name: 'Emma', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&q=80' },
-      { name: 'Lisa', image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&q=80' },
-    ],
-    percentage: 45,
-    expirationDate: getFutureDate(1, 15) // Tomorrow at 3 PM
-  },
-  {
-    id: 9,
-    roomId: 2,
-    title: "New restaurant will open by next month",
-    imageUrl: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80",
-    amountAtStake: 90,
-    participants: [
-      { name: 'Emma', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&q=80' },
-      { name: 'Alex', image: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&q=80' },
-    ],
-    percentage: 67,
-    expirationDate: getFutureDate(25, 10) // 25 days from now at 10 AM
-  },
-  {
-    id: 10,
-    roomId: 2,
-    title: "Summer vacation trip will happen",
-    imageUrl: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&q=80",
-    amountAtStake: 600,
-    participants: [
-      { name: 'Emma', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&q=80' },
-      { name: 'Alex', image: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&q=80' },
-      { name: 'Lisa', image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&q=80' },
-    ],
-    percentage: 88,
-    expirationDate: getFutureDate(60, 12) // 60 days from now at noon
-  }
-];
+const { rooms, bets } = processRoomsAndBets();
 
 export default function Homepage() {
-  const [selectedRoomId, setSelectedRoomId] = useState<number | null>(1);
+  const [selectedRoomId, setSelectedRoomId] = useState<number | null>(0);
   const [isAddRoomOpen, setIsAddRoomOpen] = useState(false);
   const [isCreateBetOpen, setIsCreateBetOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userCash, setUserCash] = useState(1250);
-  const [userAtStake, setUserAtStake] = useState(450);
   const roomRefs = useRef<{ [key: number]: HTMLButtonElement | null }>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Get current user data
+  const currentUser = dbData.users.find((u) => u.id === 'user_1');
+  const userCash = currentUser?.cash || 0;
+  
+  // Calculate user's total at stake from all their trades
+  const userTrades = dbData.trades.filter((t) => t.userId === 'user_1');
+  const userAtStake = userTrades.reduce((sum, t) => sum + t.amount, 0);
 
   const handleLogin = () => {
     setIsLoggedIn(true);
   };
 
   // Filter bets by selected room
-  const filteredBets = selectedRoomId 
-    ? bets.filter(bet => bet.roomId === selectedRoomId)
+  const filteredBets = selectedRoomId !== null
+    ? bets.filter(bet => {
+        // Check if bet belongs to selected room
+        if (bet.roomId !== selectedRoomId) return false;
+        
+        // If "My Room" (room 0), only show bets where current user has trades
+        if (selectedRoomId === 0) {
+          const betId = `bet_${bet.id}`;
+          const userHasTrades = dbData.trades.some(
+            trade => trade.betId === betId && trade.userId === 'user_1'
+          );
+          return userHasTrades;
+        }
+        
+        return true;
+      })
     : bets;
 
   const handleRoomSelect = (roomId: number) => {
@@ -280,39 +179,46 @@ export default function Homepage() {
             ref={scrollContainerRef}
             className="flex gap-6 overflow-x-auto py-4 scrollbar-hide snap-x snap-mandatory"
           >
-            {rooms.map((room, index) => (
-              <button
-                key={room.id}
-                ref={(el) => { roomRefs.current[room.id] = el; }}
-                onClick={() => handleRoomSelect(room.id)}
-                className={`flex items-center gap-3 min-w-fit snap-start group transition-all rounded-full px-4 py-2 ${
-                  selectedRoomId === room.id 
-                    ? 'opacity-100 bg-red-900/30 border border-red-800/50' 
-                    : 'opacity-60 hover:opacity-80 border border-transparent'
-                } ${index === 0 ? 'ml-6' : ''}`}
-              >
-                {/* Avatar Group */}
-                <div className="flex -space-x-3">
-                  {room.members.map((member, idx) => (
-                    <Avatar 
-                      key={idx} 
-                      className="w-10 h-10"
-                    >
-                      <AvatarImage src={member.image} alt={member.name} />
-                      <AvatarFallback className="text-xs">{member.name[0]}</AvatarFallback>
-                    </Avatar>
-                  ))}
-                </div>
-                {/* Room Name */}
-                <span className={`text-sm font-medium whitespace-nowrap transition-colors ${
-                  selectedRoomId === room.id
-                    ? 'text-red-300'
-                    : 'text-muted-foreground group-hover:text-foreground'
-                }`}>
-                  {room.name}
-                </span>
-              </button>
-            ))}
+            {rooms.map((room, index) => {
+              const isPersonalRoom = room.id === 0 || room.isPersonal;
+              return (
+                <button
+                  key={room.id}
+                  ref={(el) => { roomRefs.current[room.id] = el; }}
+                  onClick={() => handleRoomSelect(room.id)}
+                  className={`flex items-center gap-3 min-w-fit snap-start group transition-all rounded-full px-4 py-2 ${
+                    selectedRoomId === room.id
+                      ? isPersonalRoom
+                        ? 'opacity-100 bg-gradient-to-br from-yellow-500/40 to-amber-600/40 border border-yellow-500/60'
+                        : 'opacity-100 bg-red-900/30 border border-red-800/50'
+                      : 'opacity-60 hover:opacity-80 border border-transparent'
+                  } ${index === 0 ? 'ml-6' : ''}`}
+                >
+                  {/* Avatar Group */}
+                  <div className="flex -space-x-3">
+                    {room.members.map((member, idx) => (
+                      <Avatar 
+                        key={idx} 
+                        className={`w-10 h-10 ${isPersonalRoom && selectedRoomId === room.id ? 'ring-2 ring-yellow-500/50' : ''}`}
+                      >
+                        <AvatarImage src={member.image} alt={member.name} />
+                        <AvatarFallback className="text-xs">{member.name[0]}</AvatarFallback>
+                      </Avatar>
+                    ))}
+                  </div>
+                  {/* Room Name */}
+                  <span className={`text-sm font-medium whitespace-nowrap transition-colors ${
+                    selectedRoomId === room.id
+                      ? isPersonalRoom
+                        ? 'text-yellow-300'
+                        : 'text-red-300'
+                      : 'text-muted-foreground group-hover:text-foreground'
+                  }`}>
+                    {room.name}
+                  </span>
+                </button>
+              );
+            })}
             
             {/* Add New Room Button */}
             <button 

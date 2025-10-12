@@ -6,8 +6,8 @@ export const metadata: Metadata = {
   description: 'Betroom',
   manifest: '/manifest.json',
   icons: {
-    icon: '/public/icon-192x192.png',
-    apple: '/public/icon-192x192.png',
+    icon: '/icon-192x192.png',
+    apple: '/icon-192x192.png',
   },
 }
 
