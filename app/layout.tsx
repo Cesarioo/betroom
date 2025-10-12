@@ -1,27 +1,20 @@
-'use client';
-
-import { useState, useEffect } from 'react';
+import type { Metadata } from 'next'
 import './globals.css'
-import AppStartup from '@/components/appStartup';
+
+export const metadata: Metadata = {
+  title: 'Betroom',
+  description: 'Betroom',
+  manifest: '/manifest.json',
+  icons: {
+    icon: '/public/icon-192x192.png',
+    apple: '/public/icon-192x192.png',
+  },
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const [showStartup, setShowStartup] = useState(true);
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  const handleStartupComplete = () => {
-    setShowStartup(false);
-  };
-
   return (
     <html lang="en" className="dark">
-      <body>
-        {isClient && showStartup && <AppStartup onComplete={handleStartupComplete} />}
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   )
 }

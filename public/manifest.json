@@ -3,7 +3,7 @@
     "short_name": "Betroom",
     "start_url": "/",
     "display": "standalone",
-    "background_color": "#ffffff",
+    "background_color": "#00000",
     "theme_color": "#000000",
     "description": "Best app ever.",
     "icons": [

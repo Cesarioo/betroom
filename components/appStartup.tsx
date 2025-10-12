@@ -1,32 +1,67 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 
 interface AppStartupProps {
   onComplete: () => void;
 }
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
 export default function AppStartup({ onComplete }: AppStartupProps) {
   const [isVisible, setIsVisible] = useState(true);
   const [isAnimatingIn, setIsAnimatingIn] = useState(false);
   const [isAnimatingOut, setIsAnimatingOut] = useState(false);
+  const deferredPromptRef = useRef<BeforeInstallPromptEvent | null>(null);
+
+  // Listen for the PWA install prompt event
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      // Prevent the mini-infobar from appearing on mobile
+      e.preventDefault();
+      // Stash the event so it can be triggered later
+      deferredPromptRef.current = e as BeforeInstallPromptEvent;
+      console.log('PWA install prompt available');
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
 
   useEffect(() => {
+    console.log('AppStartup mounted');
     // Start entrance animation
-    setTimeout(() => setIsAnimatingIn(true), 50);
+    const animInTimer = setTimeout(() => setIsAnimatingIn(true), 50);
 
     // Wait for 2 seconds, then start exit animation
-    const timer = setTimeout(() => {
+    const exitTimer = setTimeout(() => {
       setIsAnimatingOut(true);
       setIsVisible(false);
       // After animation completes, call onComplete
       setTimeout(() => {
+        // Show PWA install prompt if available
+        if (deferredPromptRef.current) {
+          deferredPromptRef.current.prompt();
+          deferredPromptRef.current.userChoice.then((choiceResult) => {
+            console.log('User choice:', choiceResult.outcome);
+            deferredPromptRef.current = null;
+          });
+        }
         onComplete();
       }, 400); // Match faster animation duration
     }, 2000);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(animInTimer);
+      clearTimeout(exitTimer);
+    };
   }, [onComplete]);
 
   return (
