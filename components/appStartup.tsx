@@ -85,7 +85,7 @@ export default function AppStartup({ onComplete }: AppStartupProps) {
       >
         <div className="animate-pulse">
           <Image
-            src="/icon-512x512.png"
+            src="/icon.png"
             alt="Betroom Logo"
             width={120}
             height={120}
