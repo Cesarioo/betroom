@@ -81,7 +81,7 @@ export default function BetDialog({
             Bet against {opponentUser?.name || 'Opponent'}
           </DialogTitle>
           <DialogDescription className="text-center">
-            You bet on {title}
+            {title}
           </DialogDescription>
         </DialogHeader>
 
@@ -94,7 +94,12 @@ export default function BetDialog({
                 <AvatarImage src={currentUser.profileImage} alt={currentUser.name} />
                 <AvatarFallback className="text-2xl">{currentUser.name[0]}</AvatarFallback>
               </Avatar>
-              <span className="text-sm font-semibold text-foreground">{currentUser.name}: ${amount}</span>
+              <span className="text-sm font-semibold">
+                <span className={betChoice === 'yes' ? 'text-green-500' : 'text-red-500'}>
+                  {betChoice.toUpperCase()}
+                </span>
+                <span className="text-foreground"> for ${amount}</span>
+              </span>
             </div>
 
             {/* VS */}
@@ -106,7 +111,12 @@ export default function BetDialog({
                 <AvatarImage src={opponentUser?.profileImage} alt={opponentUser?.name || 'Opponent'} />
                 <AvatarFallback className="text-2xl">{opponentUser?.name[0] || '?'}</AvatarFallback>
               </Avatar>
-              <span className="text-sm font-semibold text-foreground">{opponentUser?.name || 'Opponent'}: ${opponentAmount.toFixed(2)}</span>
+              <span className="text-sm font-semibold">
+                <span className={betChoice === 'yes' ? 'text-red-500' : 'text-green-500'}>
+                  {betChoice === 'yes' ? 'NO' : 'YES'}
+                </span>
+                <span className="text-foreground"> for ${opponentAmount.toFixed(2)}</span>
+              </span>
             </div>
           </div>
 
