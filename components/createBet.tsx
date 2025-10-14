@@ -324,9 +324,9 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
           </div>
 
           {/* Expiration Date and Participants */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-2 sm:gap-4">
             {/* Expiration Date */}
-            <div className="space-y-1">
+            <div className="space-y-1 min-w-0">
               <label className="text-xs text-muted-foreground">
                 Expiration
               </label>
@@ -335,13 +335,13 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
                   type="date"
                   value={expirationDate}
                   onChange={(e) => setExpirationDate(e.target.value)}
-                  className="w-full"
+                  className="w-full text-xs sm:text-sm"
                 />
               </div>
             </div>
 
             {/* Participants Selector */}
-            <div className="space-y-1">
+            <div className="space-y-1 min-w-0">
               <label className="text-xs text-muted-foreground">
                 Participants
               </label>
