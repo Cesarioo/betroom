@@ -47,8 +47,32 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
     }
   }, [isParticipantsOpen]);
 
+  // Reconstruct rooms from user data
+  const reconstructRooms = () => {
+    const roomsMap = new Map<string, { id: string; name: string; members: string[] }>();
+    
+    dbData.users.forEach(user => {
+      if (user.rooms && Array.isArray(user.rooms)) {
+        user.rooms.forEach((room: any) => {
+          if (!roomsMap.has(room.id)) {
+            roomsMap.set(room.id, {
+              id: room.id,
+              name: room.name,
+              members: []
+            });
+          }
+          roomsMap.get(room.id)!.members.push(user.id);
+        });
+      }
+    });
+    
+    return Array.from(roomsMap.values());
+  };
+  
+  const allRooms = reconstructRooms();
+  
   // Get all rooms except "My Room" (room_0)
-  const availableRooms = dbData.rooms.filter(room => room.id !== 'room_0');
+  const availableRooms = allRooms.filter(room => room.id !== 'room_0');
   
   // Get all participants except current user (user_1)
   const availableParticipants = dbData.users.filter(user => user.id !== 'user_1');
@@ -70,7 +94,7 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
   
   // Toggle room selection and its members
   const toggleRoom = (roomId: string) => {
-    const room = dbData.rooms.find(r => r.id === roomId);
+    const room = allRooms.find(r => r.id === roomId);
     if (!room) return;
     
     const isCurrentlySelected = selectedRooms.includes(roomId);
@@ -122,7 +146,7 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
       // State 3 -> State 1: Selected with crown -> Not selected
       // Check if this user is part of any selected room
       const roomsWithUser = selectedRooms.filter(roomId => {
-        const room = dbData.rooms.find(r => r.id === roomId);
+        const room = allRooms.find(r => r.id === roomId);
         return room && room.members.includes(userId);
       });
       
@@ -140,7 +164,7 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
   // Get all selected members (from rooms and individuals)
   const getAllSelectedMembers = () => {
     const roomMembers = selectedRooms.flatMap(roomId => {
-      const room = dbData.rooms.find(r => r.id === roomId);
+      const room = allRooms.find(r => r.id === roomId);
       return room ? room.members : [];
     });
     return [...new Set([...roomMembers, ...selectedParticipants])].filter(id => id !== 'user_1');

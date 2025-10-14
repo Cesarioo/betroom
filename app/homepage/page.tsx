@@ -12,14 +12,33 @@ import dbData from '@/backend/db.json';
 
 // Process data from database
 const processRoomsAndBets = () => {
-  const { users, rooms, bets, trades } = dbData;
+  const { users, bets, trades } = dbData;
+  
+  // Reconstruct rooms from user data
+  const roomsMap = new Map<string, { id: string; name: string; isPersonal: boolean; memberIds: string[] }>();
+  
+  users.forEach(user => {
+    if (user.rooms && Array.isArray(user.rooms)) {
+      user.rooms.forEach((room: any) => {
+        if (!roomsMap.has(room.id)) {
+          roomsMap.set(room.id, {
+            id: room.id,
+            name: room.name,
+            isPersonal: room.isPersonal || false,
+            memberIds: []
+          });
+        }
+        roomsMap.get(room.id)!.memberIds.push(user.id);
+      });
+    }
+  });
   
   // Process rooms with member details
-  const processedRooms = rooms.map((room) => ({
+  const processedRooms = Array.from(roomsMap.values()).map((room) => ({
     id: room.id === 'room_0' ? 0 : room.id === 'room_1' ? 1 : 2,
     name: room.name,
     isPersonal: room.isPersonal,
-    members: room.members.map((userId) => {
+    members: room.memberIds.map((userId) => {
       const user = users.find((u) => u.id === userId);
       return user ? { name: user.name, image: user.profileImage } : { name: '', image: '' };
     }),

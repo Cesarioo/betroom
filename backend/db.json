@@ -5,67 +5,92 @@
       "name": "You",
       "email": "alex.johnson@email.com",
       "profileImage": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&q=80",
-      "cash": 1250
+      "cash": 1250,
+      "rooms": [
+        {
+          "id": "room_0",
+          "name": "My Room",
+          "isPersonal": true
+        }
+      ]
     },
     {
       "id": "user_2",
       "name": "John",
       "email": "john.smith@email.com",
       "profileImage": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80",
-      "cash": 800
+      "cash": 800,
+      "rooms": [
+        {
+          "id": "room_1",
+          "name": "Work Room"
+        }
+      ]
     },
     {
       "id": "user_3",
       "name": "Sarah",
       "email": "sarah.jones@email.com",
       "profileImage": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&q=80",
-      "cash": 1500
+      "cash": 1500,
+      "rooms": [
+        {
+          "id": "room_1",
+          "name": "Work Room"
+        }
+      ]
     },
     {
       "id": "user_4",
       "name": "Mike",
       "email": "mike.wilson@email.com",
       "profileImage": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&q=80",
-      "cash": 950
+      "cash": 950,
+      "rooms": [
+        {
+          "id": "room_1",
+          "name": "Work Room"
+        }
+      ]
     },
     {
       "id": "user_5",
       "name": "Emma",
       "email": "emma.davis@email.com",
       "profileImage": "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&q=80",
-      "cash": 1200
+      "cash": 1200,
+      "rooms": [
+        {
+          "id": "room_2",
+          "name": "Friends Room"
+        }
+      ]
     },
     {
       "id": "user_6",
       "name": "Alex",
       "email": "alex.brown@email.com",
       "profileImage": "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&q=80",
-      "cash": 700
+      "cash": 700,
+      "rooms": [
+        {
+          "id": "room_2",
+          "name": "Friends Room"
+        }
+      ]
     },
     {
       "id": "user_7",
       "name": "Lisa",
       "email": "lisa.taylor@email.com",
       "profileImage": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&q=80",
-      "cash": 1100
-    }
-  ],
-  "rooms": [
-    {
-      "id": "room_0",
-      "name": "My Room",
-      "isPersonal": true,
-      "members": ["user_1"]
-    },
-    {
-      "id": "room_1",
-      "name": "Work Room",
-      "members": ["user_2", "user_3", "user_4"]
-    },
-    {
-      "id": "room_2",
-      "name": "Friends Room",
-      "members": ["user_5", "user_6", "user_7"]
+      "cash": 1100,
+      "rooms": [
+        {
+          "id": "room_2",
+          "name": "Friends Room"
+        }
+      ]
     }
   ],
   "bets": [

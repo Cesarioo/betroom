@@ -58,24 +58,20 @@ export default function BetDialog({
     }
   }, [isOpen, maxAvailable]);
 
-  const calculatePotentialEarnings = () => {
-    if (amount <= 0) return { total: 0, profit: 0 };
-
-    let potentialReturn = 0;
+  // Calculate opponent's amount based on odds
+  const calculateOpponentAmount = () => {
+    if (amount <= 0) return 0;
+    
     if (betChoice === 'yes') {
-      potentialReturn = (100 / percentage) * amount;
+      // User bets YES at percentage%, opponent needs to put (100-percentage)% of the payout
+      return (amount * (100 - percentage)) / percentage;
     } else {
-      potentialReturn = (100 / (100 - percentage)) * amount;
+      // User bets NO at (100-percentage)%, opponent needs to put percentage% of the payout
+      return (amount * percentage) / (100 - percentage);
     }
-
-    const profit = potentialReturn - amount;
-    return {
-      total: potentialReturn,
-      profit: profit
-    };
   };
 
-  const earnings = calculatePotentialEarnings();
+  const opponentAmount = calculateOpponentAmount();
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -98,7 +94,7 @@ export default function BetDialog({
                 <AvatarImage src={currentUser.profileImage} alt={currentUser.name} />
                 <AvatarFallback className="text-2xl">{currentUser.name[0]}</AvatarFallback>
               </Avatar>
-              <span className="text-sm font-semibold text-foreground">{currentUser.name}</span>
+              <span className="text-sm font-semibold text-foreground">{currentUser.name}: ${amount}</span>
             </div>
 
             {/* VS */}
@@ -110,16 +106,12 @@ export default function BetDialog({
                 <AvatarImage src={opponentUser?.profileImage} alt={opponentUser?.name || 'Opponent'} />
                 <AvatarFallback className="text-2xl">{opponentUser?.name[0] || '?'}</AvatarFallback>
               </Avatar>
-              <span className="text-sm font-semibold text-foreground">{opponentUser?.name || 'Opponent'}</span>
+              <span className="text-sm font-semibold text-foreground">{opponentUser?.name || 'Opponent'}: ${opponentAmount.toFixed(2)}</span>
             </div>
           </div>
 
           {/* Amount Slider */}
-          <div className="space-y-3 px-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Amount</span>
-              <span className="text-lg font-bold text-foreground">${amount}</span>
-            </div>
+          <div className="px-2">
             <Slider
               value={[amount]}
               onValueChange={(values) => setBetAmount(values[0].toString())}
@@ -128,26 +120,6 @@ export default function BetDialog({
               step={1}
               className="w-full"
             />
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>$0</span>
-              <span>Max: ${maxAvailable}</span>
-            </div>
-          </div>
-
-          {/* Potential Earnings */}
-          <div className="space-y-2 p-4 bg-primary/5 border border-primary/20 rounded-lg">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Potential return</span>
-              <span className="text-base font-semibold text-foreground">
-                ${earnings.total.toFixed(2)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Potential profit</span>
-              <span className={`text-base font-bold ${earnings.profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                +${earnings.profit.toFixed(2)}
-              </span>
-            </div>
           </div>
         </div>
 
