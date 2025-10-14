@@ -40,8 +40,8 @@ export default function Bet({
   const [betChoice, setBetChoice] = useState<'yes' | 'no'>('yes');
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const displayedParticipants = participants.slice(0, 5);
-  const remainingCount = Math.max(0, participants.length - 5);
+  const displayedParticipants = participants.slice(0, 3);
+  const remainingCount = Math.max(0, participants.length - 3);
 
   // Get all trades for this bet
   const betId = `bet_${id}`;
@@ -266,27 +266,27 @@ export default function Bet({
         </div>
 
         {/* Stake, Expiration & Participants */}
-        <div className="flex items-center justify-between pt-2">
+        <div className="grid grid-cols-3 pt-2">
           {/* Stake */}
-          <div className="flex flex-col gap-0.5">
+          <div className="flex flex-col justify-between gap-0.5">
             <span className="text-xs text-muted-foreground">Stake</span>
             <span className="text-sm font-bold text-foreground">${amountAtStake}</span>
           </div>
 
           {/* Expiration */}
-          <div className="flex flex-col gap-0.5 items-center">
+          <div className="flex flex-col justify-between gap-0.5 items-center">
             <span className="text-xs text-muted-foreground">Ends</span>
-            <span className="text-xs font-medium text-foreground">{formatExpirationDate(expirationDate)}</span>
+            <span className="text-sm font-bold text-foreground">{formatExpirationDate(expirationDate)}</span>
           </div>
 
           {/* Participants */}
-          <div className="flex flex-col items-end gap-0.5">
+          <div className="flex flex-col justify-between items-end gap-0.5">
             <button 
               onClick={() => setIsExpanded(!isExpanded)}
               className="flex items-center gap-1 group"
             >
               <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
-                Participants
+                Players
               </span>
               {isExpanded ? (
                 <ChevronUp className="w-3 h-3 text-muted-foreground group-hover:text-foreground transition-colors" />
