@@ -332,10 +332,10 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
               </label>
               <div className="relative">
                 <Input
-                  type="datetime-local"
+                  type="datetime"
                   value={expirationDate}
                   onChange={(e) => setExpirationDate(e.target.value)}
-                  className="w-full"
+                  className=""
                 />
               </div>
             </div>
