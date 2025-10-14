@@ -81,10 +81,7 @@ export default function Homepage() {
   // Filter bets by selected room
   const filteredBets = selectedRoomId !== null
     ? bets.filter(bet => {
-        // Check if bet belongs to selected room
-        if (bet.roomId !== selectedRoomId) return false;
-        
-        // If "My Room" (room 0), only show bets where current user has trades
+        // If "My Room" (room 0), show ALL bets where current user has trades (regardless of room)
         if (selectedRoomId === 0) {
           const betId = `bet_${bet.id}`;
           const userHasTrades = dbData.trades.some(
@@ -93,7 +90,8 @@ export default function Homepage() {
           return userHasTrades;
         }
         
-        return true;
+        // For other rooms, filter by roomId
+        return bet.roomId === selectedRoomId;
       })
     : bets;
 

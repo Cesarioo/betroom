@@ -11,7 +11,10 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Upload } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Upload, ChevronDown, Check, X } from 'lucide-react';
+import dbData from '@/backend/db.json';
 
 interface CreateBetProps {
   open: boolean;
@@ -25,8 +28,33 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
   const [amount, setAmount] = useState('');
   const [initialChoice, setInitialChoice] = useState<'yes' | 'no'>('yes');
   const [initialPercentage, setInitialPercentage] = useState('');
+  const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Get all participants except current user (user_1)
+  const availableParticipants = dbData.users.filter(user => user.id !== 'user_1');
+  
+  // Filter participants by search query
+  const filteredParticipants = availableParticipants.filter(user =>
+    user.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  
+  // Toggle participant selection
+  const toggleParticipant = (userId: string) => {
+    setSelectedParticipants(prev =>
+      prev.includes(userId)
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+  
+  // Remove a specific participant
+  const removeParticipant = (userId: string) => {
+    setSelectedParticipants(prev => prev.filter(id => id !== userId));
+  };
 
   // Get browser timezone in GMT format
   const getTimezone = () => {
@@ -66,6 +94,7 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
       amount,
       initialChoice,
       initialPercentage,
+      selectedParticipants,
     });
     // Clean up blob URL if it exists
     if (imageUrl.startsWith('blob:')) {
@@ -78,10 +107,12 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
     setAmount('');
     setInitialChoice('yes');
     setInitialPercentage('');
+    setSelectedParticipants([]);
+    setSearchQuery('');
     onOpenChange(false);
   };
 
-  const isComplete = betName && imageUrl && expirationDate && amount && initialPercentage;
+  const isComplete = betName && imageUrl && expirationDate && amount && initialPercentage && selectedParticipants.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -194,18 +225,119 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
             </button>
           </div>
 
-          {/* Expiration Date */}
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">
-              Expiration ({getTimezone()})
-            </label>
-            <div className="relative">
-              <Input
-                type="datetime-local"
-                value={expirationDate}
-                onChange={(e) => setExpirationDate(e.target.value)}
-                className="w-full"
-              />
+          {/* Expiration Date and Participants */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Expiration Date */}
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">
+                Expiration ({getTimezone()})
+              </label>
+              <div className="relative">
+                <Input
+                  type="datetime-local"
+                  value={expirationDate}
+                  onChange={(e) => setExpirationDate(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+            </div>
+
+            {/* Participants Selector */}
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">
+                Participants
+              </label>
+              <Popover open={isParticipantsOpen} onOpenChange={setIsParticipantsOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <span className={selectedParticipants.length === 0 ? 'text-muted-foreground' : ''}>
+                      {selectedParticipants.length === 0
+                        ? 'Participants'
+                        : `${selectedParticipants.length} selected`}
+                    </span>
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-0" align="start">
+                  <div className="flex flex-col">
+                    {/* Search Input */}
+                    <div className="p-2 border-b">
+                      <Input
+                        placeholder="Search participants..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="h-9"
+                      />
+                    </div>
+                    
+                    {/* Selected Participants */}
+                    {selectedParticipants.length > 0 && (
+                      <div className="p-2 border-b bg-muted/50 max-h-20 overflow-y-auto">
+                        <div className="flex flex-wrap gap-1">
+                          {selectedParticipants.map((userId) => {
+                            const user = availableParticipants.find(u => u.id === userId);
+                            return user ? (
+                              <div
+                                key={userId}
+                                className="flex items-center gap-1 bg-primary/10 text-primary rounded-md px-2 py-1 text-xs"
+                              >
+                                <Avatar className="w-4 h-4">
+                                  <AvatarImage src={user.profileImage} alt={user.name} />
+                                  <AvatarFallback className="text-[8px]">{user.name[0]}</AvatarFallback>
+                                </Avatar>
+                                <span>{user.name}</span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeParticipant(userId);
+                                  }}
+                                  className="hover:bg-primary/20 rounded-sm"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </div>
+                            ) : null;
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Participants List - Fixed height and scrollable */}
+                    <div className="overflow-y-auto max-h-64">
+                      {filteredParticipants.length === 0 ? (
+                        <div className="p-4 text-center text-sm text-muted-foreground">
+                          No participants found
+                        </div>
+                      ) : (
+                        filteredParticipants.map((user) => {
+                          const isSelected = selectedParticipants.includes(user.id);
+                          return (
+                            <button
+                              key={user.id}
+                              type="button"
+                              onClick={() => toggleParticipant(user.id)}
+                              className="w-full flex items-center gap-3 px-3 py-2 hover:bg-accent transition-colors"
+                            >
+                              <Avatar className="w-8 h-8 flex-shrink-0">
+                                <AvatarImage src={user.profileImage} alt={user.name} />
+                                <AvatarFallback className="text-xs">{user.name[0]}</AvatarFallback>
+                              </Avatar>
+                              <span className="flex-1 text-left text-sm">{user.name}</span>
+                              {isSelected && (
+                                <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                              )}
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </div>
