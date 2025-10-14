@@ -33,6 +33,7 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
   const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
+  const [isExpirationOpen, setIsExpirationOpen] = useState(false);
   const [showRooms, setShowRooms] = useState(false);
   const [showIndividualUsers, setShowIndividualUsers] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -152,6 +153,37 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
     const offset = -new Date().getTimezoneOffset() / 60;
     const sign = offset >= 0 ? '+' : '';
     return `GMT${sign}${offset}`;
+  };
+
+  // Calculate quick date options
+  const getQuickDate = (option: 'tomorrow' | 'end-of-week' | 'end-of-month') => {
+    const date = new Date();
+    
+    switch (option) {
+      case 'tomorrow':
+        date.setDate(date.getDate() + 1);
+        break;
+      case 'end-of-week':
+        const daysUntilSunday = 7 - date.getDay();
+        date.setDate(date.getDate() + daysUntilSunday);
+        break;
+      case 'end-of-month':
+        date.setMonth(date.getMonth() + 1, 0); // Last day of current month
+        break;
+    }
+    
+    return date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+  };
+
+  // Format date for display
+  const formatDisplayDate = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      year: 'numeric'
+    });
   };
 
   useEffect(() => {
@@ -330,14 +362,72 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
               <label className="text-xs text-muted-foreground">
                 Expiration ({getTimezone()})
               </label>
-              <div className="relative h-[40px]">
-                <Input
-                  type="date"
-                  value={expirationDate}
-                  onChange={(e) => setExpirationDate(e.target.value)}
-                  className="h-[40px] w-full"
-                />
-              </div>
+              <Popover open={isExpirationOpen} onOpenChange={setIsExpirationOpen} modal={true}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <span className={expirationDate ? '' : 'text-muted-foreground'}>
+                      {expirationDate ? formatDisplayDate(expirationDate) : 'Select date'}
+                    </span>
+                    <ChevronDown className="h-4 w-4 opacity-50 flex-shrink-0" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent 
+                  className="w-80 p-0" 
+                  align="start" 
+                  sideOffset={4}
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                >
+                  <div className="flex flex-col">
+                    <div className="py-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setExpirationDate(getQuickDate('tomorrow'));
+                          setIsExpirationOpen(false);
+                        }}
+                        className="w-full flex items-center px-3 py-2 hover:bg-accent transition-colors text-sm"
+                      >
+                        Tomorrow
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setExpirationDate(getQuickDate('end-of-week'));
+                          setIsExpirationOpen(false);
+                        }}
+                        className="w-full flex items-center px-3 py-2 hover:bg-accent transition-colors text-sm"
+                      >
+                        End of Week
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setExpirationDate(getQuickDate('end-of-month'));
+                          setIsExpirationOpen(false);
+                        }}
+                        className="w-full flex items-center px-3 py-2 hover:bg-accent transition-colors text-sm"
+                      >
+                        End of Month
+                      </button>
+                      <div className="border-t p-2">
+                        <div className="text-xs text-muted-foreground px-1 mb-1">Custom Date</div>
+                        <Input
+                          type="date"
+                          value={expirationDate}
+                          onChange={(e) => {
+                            setExpirationDate(e.target.value);
+                            setIsExpirationOpen(false);
+                          }}
+                          className="w-full"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
 
             {/* Participants Selector */}
