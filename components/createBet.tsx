@@ -332,7 +332,7 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
               </label>
               <div className="relative h-[40px]">
                 <Input
-                  type="datetime"
+                  type="date"
                   value={expirationDate}
                   onChange={(e) => setExpirationDate(e.target.value)}
                   className="h-[40px]"
