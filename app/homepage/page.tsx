@@ -19,7 +19,7 @@ const processRoomsAndBets = () => {
   
   users.forEach(user => {
     if (user.rooms && Array.isArray(user.rooms)) {
-      user.rooms.forEach((room: any) => {
+      user.rooms.forEach((room: { id: string; name: string; isPersonal?: boolean }) => {
         if (!roomsMap.has(room.id)) {
           roomsMap.set(room.id, {
             id: room.id,
