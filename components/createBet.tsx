@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Upload, ChevronDown, Check, X } from 'lucide-react';
+import { Upload, ChevronDown, ChevronRight, Check, Crown } from 'lucide-react';
 import dbData from '@/backend/db.json';
 
 interface CreateBetProps {
@@ -29,32 +29,123 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
   const [initialChoice, setInitialChoice] = useState<'yes' | 'no'>('yes');
   const [initialPercentage, setInitialPercentage] = useState('');
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
+  const [crownedParticipants, setCrownedParticipants] = useState<string[]>([]);
+  const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
+  const [showRooms, setShowRooms] = useState(false);
+  const [showIndividualUsers, setShowIndividualUsers] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Automatically open Rooms when popover opens
+  useEffect(() => {
+    if (isParticipantsOpen) {
+      setShowRooms(true);
+      setShowIndividualUsers(false);
+    }
+  }, [isParticipantsOpen]);
+
+  // Get all rooms except "My Room" (room_0)
+  const availableRooms = dbData.rooms.filter(room => room.id !== 'room_0');
+  
   // Get all participants except current user (user_1)
   const availableParticipants = dbData.users.filter(user => user.id !== 'user_1');
+  
+  // Filter rooms by search query (searches in room name and member names)
+  const filteredRooms = availableRooms.filter(room => {
+    const roomNameMatch = room.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const memberNamesMatch = room.members.some(memberId => {
+      const user = dbData.users.find(u => u.id === memberId);
+      return user && user.name.toLowerCase().includes(searchQuery.toLowerCase());
+    });
+    return roomNameMatch || memberNamesMatch;
+  });
   
   // Filter participants by search query
   const filteredParticipants = availableParticipants.filter(user =>
     user.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
   
-  // Toggle participant selection
-  const toggleParticipant = (userId: string) => {
-    setSelectedParticipants(prev =>
-      prev.includes(userId)
-        ? prev.filter(id => id !== userId)
-        : [...prev, userId]
-    );
+  // Toggle room selection and its members
+  const toggleRoom = (roomId: string) => {
+    const room = dbData.rooms.find(r => r.id === roomId);
+    if (!room) return;
+    
+    const isCurrentlySelected = selectedRooms.includes(roomId);
+    
+    if (isCurrentlySelected) {
+      // Deselect room and remove its members from selectedParticipants
+      setSelectedRooms(prev => prev.filter(id => id !== roomId));
+      setSelectedParticipants(prev => 
+        prev.filter(userId => !room.members.includes(userId) || userId === 'user_1')
+      );
+    } else {
+      // Select room and add its members to selectedParticipants
+      setSelectedRooms(prev => [roomId, ...prev]);
+      const newMembers = room.members.filter(id => id !== 'user_1');
+      setSelectedParticipants(prev => {
+        const uniqueMembers = [...new Set([...newMembers, ...prev])];
+        return uniqueMembers;
+      });
+    }
   };
   
-  // Remove a specific participant
-  const removeParticipant = (userId: string) => {
-    setSelectedParticipants(prev => prev.filter(id => id !== userId));
+  // Toggle between Rooms and Individual Users sections
+  const handleToggleRooms = () => {
+    setShowRooms(!showRooms);
+    if (!showRooms) {
+      setShowIndividualUsers(false); // Close Individual Users when opening Rooms
+    }
   };
+  
+  const handleToggleIndividualUsers = () => {
+    setShowIndividualUsers(!showIndividualUsers);
+    if (!showIndividualUsers) {
+      setShowRooms(false); // Close Rooms when opening Individual Users
+    }
+  };
+  
+  // Toggle participant selection (3-state cycle)
+  const toggleParticipant = (userId: string) => {
+    const isCurrentlySelected = selectedParticipants.includes(userId);
+    const isCurrentlyCrowned = crownedParticipants.includes(userId);
+    
+    if (!isCurrentlySelected) {
+      // State 1 -> State 2: Not selected -> Selected (no crown)
+      setSelectedParticipants(prev => [userId, ...prev]);
+    } else if (isCurrentlySelected && !isCurrentlyCrowned) {
+      // State 2 -> State 3: Selected (no crown) -> Selected with crown
+      setCrownedParticipants(prev => [userId, ...prev]);
+    } else {
+      // State 3 -> State 1: Selected with crown -> Not selected
+      // Check if this user is part of any selected room
+      const roomsWithUser = selectedRooms.filter(roomId => {
+        const room = dbData.rooms.find(r => r.id === roomId);
+        return room && room.members.includes(userId);
+      });
+      
+      // Deselect those rooms but keep all other participants
+      if (roomsWithUser.length > 0) {
+        setSelectedRooms(prev => prev.filter(id => !roomsWithUser.includes(id)));
+      }
+      
+      // Remove the user from both selectedParticipants and crownedParticipants
+      setSelectedParticipants(prev => prev.filter(id => id !== userId));
+      setCrownedParticipants(prev => prev.filter(id => id !== userId));
+    }
+  };
+  
+  // Get all selected members (from rooms and individuals)
+  const getAllSelectedMembers = () => {
+    const roomMembers = selectedRooms.flatMap(roomId => {
+      const room = dbData.rooms.find(r => r.id === roomId);
+      return room ? room.members : [];
+    });
+    return [...new Set([...roomMembers, ...selectedParticipants])].filter(id => id !== 'user_1');
+  };
+  
+  const allSelectedMembers = getAllSelectedMembers();
 
   // Get browser timezone in GMT format
   const getTimezone = () => {
@@ -94,7 +185,10 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
       amount,
       initialChoice,
       initialPercentage,
+      selectedRooms,
       selectedParticipants,
+      crownedParticipants,
+      allSelectedMembers,
     });
     // Clean up blob URL if it exists
     if (imageUrl.startsWith('blob:')) {
@@ -108,11 +202,15 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
     setInitialChoice('yes');
     setInitialPercentage('');
     setSelectedParticipants([]);
+    setCrownedParticipants([]);
+    setSelectedRooms([]);
     setSearchQuery('');
+    setShowRooms(false);
+    setShowIndividualUsers(false);
     onOpenChange(false);
   };
 
-  const isComplete = betName && imageUrl && expirationDate && amount && initialPercentage && selectedParticipants.length > 0;
+  const isComplete = betName && imageUrl && expirationDate && amount && initialPercentage && allSelectedMembers.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -230,11 +328,11 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
             {/* Expiration Date */}
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">
-                Expiration ({getTimezone()})
+                Expiration
               </label>
               <div className="relative">
                 <Input
-                  type="datetime-local"
+                  type="date"
                   value={expirationDate}
                   onChange={(e) => setExpirationDate(e.target.value)}
                   className="w-full"
@@ -247,94 +345,183 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
               <label className="text-xs text-muted-foreground">
                 Participants
               </label>
-              <Popover open={isParticipantsOpen} onOpenChange={setIsParticipantsOpen}>
+              <Popover open={isParticipantsOpen} onOpenChange={setIsParticipantsOpen} modal={true}>
                 <PopoverTrigger asChild>
                   <button
                     type="button"
                     className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <span className={selectedParticipants.length === 0 ? 'text-muted-foreground' : ''}>
-                      {selectedParticipants.length === 0
-                        ? 'Participants'
-                        : `${selectedParticipants.length} selected`}
-                    </span>
-                    <ChevronDown className="h-4 w-4 opacity-50" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80 p-0" align="start">
-                  <div className="flex flex-col">
-                    {/* Search Input */}
-                    <div className="p-2 border-b">
-                      <Input
-                        placeholder="Search participants..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="h-9"
-                      />
-                    </div>
-                    
-                    {/* Selected Participants */}
-                    {selectedParticipants.length > 0 && (
-                      <div className="p-2 border-b bg-muted/50 max-h-20 overflow-y-auto">
-                        <div className="flex flex-wrap gap-1">
-                          {selectedParticipants.map((userId) => {
-                            const user = availableParticipants.find(u => u.id === userId);
+                    {allSelectedMembers.length === 0 ? (
+                      <span className="text-muted-foreground">Participants</span>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <div className="flex -space-x-2">
+                          {allSelectedMembers.slice(0, 3).map((userId, index) => {
+                            const user = dbData.users.find(u => u.id === userId);
+                            const isCrowned = crownedParticipants.includes(userId);
                             return user ? (
-                              <div
-                                key={userId}
-                                className="flex items-center gap-1 bg-primary/10 text-primary rounded-md px-2 py-1 text-xs"
-                              >
-                                <Avatar className="w-4 h-4">
+                              <div key={userId} className="relative" style={{ zIndex: 3 - index }}>
+                                <Avatar className="w-6 h-6 ring-2 ring-background">
                                   <AvatarImage src={user.profileImage} alt={user.name} />
-                                  <AvatarFallback className="text-[8px]">{user.name[0]}</AvatarFallback>
+                                  <AvatarFallback className="text-[10px]">{user.name[0]}</AvatarFallback>
                                 </Avatar>
-                                <span>{user.name}</span>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    removeParticipant(userId);
-                                  }}
-                                  className="hover:bg-primary/20 rounded-sm"
-                                >
-                                  <X className="h-3 w-3" />
-                                </button>
+                                {isCrowned && (
+                                  <Crown className="absolute -top-1 -right-1 h-3 w-3 text-red-500 fill-red-500" />
+                                )}
                               </div>
                             ) : null;
                           })}
                         </div>
+                        {allSelectedMembers.length > 3 && (
+                          <span className="text-xs text-muted-foreground">
+                            +{allSelectedMembers.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    <ChevronDown className="h-4 w-4 opacity-50 flex-shrink-0" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent 
+                  className="w-80 p-0 max-h-[calc(100vh-120px)]" 
+                  align="start" 
+                  sideOffset={4}
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                >
+                  <div className="flex flex-col">
+                    {/* Search Input */}
+                    <div className="border-b">
+                      <div className="px-3 py-2 flex items-center min-h-[42px]">
+                        <Input
+                          placeholder="Search..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="h-[26px] text-sm"
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Rooms Dropdown */}
+                    <div className="border-b">
+                      <button
+                        type="button"
+                        onClick={handleToggleRooms}
+                        className="w-full flex items-center justify-between px-3 py-2 hover:bg-accent transition-colors min-h-[42px]"
+                      >
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          Rooms
+                        </span>
+                        <ChevronRight 
+                          className={`h-4 w-4 text-muted-foreground transition-transform ${showRooms ? 'rotate-90' : ''}`}
+                        />
+                      </button>
+                    </div>
+                    
+                    {/* Rooms List - Collapsible */}
+                    {showRooms && (
+                      <div className="border-b overflow-hidden">
+                        <div 
+                          className="py-1 space-y-1 max-h-30 overflow-y-auto overscroll-contain"
+                          onWheel={(e) => e.stopPropagation()}
+                        >
+                          {filteredRooms.length === 0 ? (
+                            <div className="p-4 text-center text-sm text-muted-foreground">
+                              No rooms found
+                            </div>
+                          ) : (
+                            filteredRooms.map((room) => {
+                            const isSelected = selectedRooms.includes(room.id);
+                            const roomUsers = room.members.map(memberId => 
+                              dbData.users.find(u => u.id === memberId)
+                            ).filter(Boolean);
+                            
+                            return (
+                              <button
+                                key={room.id}
+                                type="button"
+                                onClick={() => toggleRoom(room.id)}
+                                className={`w-full flex items-center gap-2 px-3 py-1.5 hover:bg-accent transition-colors ${isSelected ? 'bg-accent/50' : ''}`}
+                              >
+                                <div className="flex -space-x-2 flex-shrink-0">
+                                  {roomUsers.slice(0, 3).map((user) => (
+                                    user && (
+                                      <Avatar key={user.id} className="w-6 h-6">
+                                        <AvatarImage src={user.profileImage} alt={user.name} />
+                                        <AvatarFallback className="text-[10px]">{user.name[0]}</AvatarFallback>
+                                      </Avatar>
+                                    )
+                                  ))}
+                                </div>
+                                <span className="flex-1 text-left text-sm">{room.name}</span>
+                                {isSelected && (
+                                  <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                                )}
+                              </button>
+                            );
+                          })
+                        )}
+                        </div>
                       </div>
                     )}
                     
-                    {/* Participants List - Fixed height and scrollable */}
-                    <div className="overflow-y-auto max-h-64">
-                      {filteredParticipants.length === 0 ? (
-                        <div className="p-4 text-center text-sm text-muted-foreground">
-                          No participants found
-                        </div>
-                      ) : (
-                        filteredParticipants.map((user) => {
-                          const isSelected = selectedParticipants.includes(user.id);
-                          return (
-                            <button
-                              key={user.id}
-                              type="button"
-                              onClick={() => toggleParticipant(user.id)}
-                              className="w-full flex items-center gap-3 px-3 py-2 hover:bg-accent transition-colors"
-                            >
-                              <Avatar className="w-8 h-8 flex-shrink-0">
-                                <AvatarImage src={user.profileImage} alt={user.name} />
-                                <AvatarFallback className="text-xs">{user.name[0]}</AvatarFallback>
-                              </Avatar>
-                              <span className="flex-1 text-left text-sm">{user.name}</span>
-                              {isSelected && (
-                                <Check className="h-4 w-4 text-primary flex-shrink-0" />
-                              )}
-                            </button>
-                          );
-                        })
-                      )}
+                    {/* Individual Users Dropdown */}
+                    <div className="border-b">
+                      <button
+                        type="button"
+                        onClick={handleToggleIndividualUsers}
+                        className="w-full flex items-center justify-between px-3 py-2 hover:bg-accent transition-colors min-h-[42px]"
+                      >
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          Individual Users
+                        </span>
+                        <ChevronRight 
+                          className={`h-4 w-4 text-muted-foreground transition-transform ${showIndividualUsers ? 'rotate-90' : ''}`}
+                        />
+                      </button>
                     </div>
+                    
+                    {/* Individual Users List - Collapsible */}
+                    {showIndividualUsers && (
+                      <div className="border-b overflow-hidden">
+                        {/* Users List */}
+                        <div 
+                          className="py-1 space-y-1 overflow-y-auto max-h-30 overscroll-contain"
+                          onWheel={(e) => e.stopPropagation()}
+                        >
+                          {filteredParticipants.length === 0 ? (
+                            <div className="p-4 text-center text-sm text-muted-foreground">
+                              No users found
+                            </div>
+                          ) : (
+                            filteredParticipants.map((user) => {
+                              const isSelected = selectedParticipants.includes(user.id);
+                              const isCrowned = crownedParticipants.includes(user.id);
+                              return (
+                                <button
+                                  key={user.id}
+                                  type="button"
+                                  onClick={() => toggleParticipant(user.id)}
+                                  className={`w-full flex items-center gap-2 px-3 py-1.5 hover:bg-accent transition-colors ${isSelected ? 'bg-accent/50' : ''}`}
+                                >
+                                  <Avatar className="w-6 h-6 flex-shrink-0">
+                                    <AvatarImage src={user.profileImage} alt={user.name} />
+                                    <AvatarFallback className="text-[10px]">{user.name[0]}</AvatarFallback>
+                                  </Avatar>
+                                  <span className="flex-1 text-left text-sm">{user.name}</span>
+                                  {isSelected && (
+                                    isCrowned ? (
+                                      <Crown className="h-4 w-4 text-red-500 flex-shrink-0" />
+                                    ) : (
+                                      <Crown className="h-4 w-4 text-muted-foreground/40 flex-shrink-0" />
+                                    )
+                                  )}
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </PopoverContent>
               </Popover>
