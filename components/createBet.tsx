@@ -335,7 +335,7 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
                   type="date"
                   value={expirationDate}
                   onChange={(e) => setExpirationDate(e.target.value)}
-                  className="h-[40px]"
+                  className="h-[40px] w-full"
                 />
               </div>
             </div>
