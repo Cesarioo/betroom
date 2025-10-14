@@ -330,12 +330,12 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
               <label className="text-xs text-muted-foreground">
                 Expiration ({getTimezone()})
               </label>
-              <div className="relative">
+              <div className="relative h-[40px]">
                 <Input
                   type="datetime"
                   value={expirationDate}
                   onChange={(e) => setExpirationDate(e.target.value)}
-                  className=""
+                  className="h-[40px]"
                 />
               </div>
             </div>
