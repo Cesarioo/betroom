@@ -178,7 +178,8 @@ export default function Homepage() {
   // Calculate the transform offset based on selected room
   const currentRoomIndex = rooms.findIndex(r => r.id === selectedRoomId);
   const baseOffset = currentRoomIndex * -100; // -100% per room
-  const totalOffset = baseOffset + (swipeOffset / (mainContentRef.current?.offsetWidth || window.innerWidth)) * 100;
+  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 375; // Default to mobile width
+  const totalOffset = baseOffset + (swipeOffset / (mainContentRef.current?.offsetWidth || viewportWidth)) * 100;
 
   return (
     <div className="min-h-screen bg-background">
