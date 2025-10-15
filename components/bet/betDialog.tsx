@@ -48,17 +48,38 @@ export default function BetDialog({
 }: BetDialogProps) {
   const amount = parseFloat(betAmount) || 0;
   
-  // Initialize slider at 10% of max available when dialog opens
+  // Calculate max user can bet based on opponent's available liquidity
+  const calculateMaxUserBet = () => {
+    if (maxAvailable <= 0) return 0;
+    
+    // maxAvailable is what the opponent has available
+    // We need to calculate how much the user can bet to use up that liquidity
+    if (betChoice === 'yes') {
+      // User bets YES at percentage%, opponent needs (userAmount * (100-percentage)) / percentage
+      // Solve: maxAvailable = (userAmount * (100-percentage)) / percentage
+      // userAmount = (maxAvailable * percentage) / (100-percentage)
+      return (maxAvailable * percentage) / (100 - percentage);
+    } else {
+      // User bets NO at (100-percentage)%, opponent needs (userAmount * percentage) / (100-percentage)
+      // Solve: maxAvailable = (userAmount * percentage) / (100-percentage)
+      // userAmount = (maxAvailable * (100-percentage)) / percentage
+      return (maxAvailable * (100 - percentage)) / percentage;
+    }
+  };
+  
+  const maxUserBet = Math.floor(calculateMaxUserBet());
+  
+  // Initialize slider at 10% of max user bet when dialog opens
   useEffect(() => {
-    if (isOpen && maxAvailable > 0) {
-      const initialAmount = Math.floor(maxAvailable * 0.1);
+    if (isOpen && maxUserBet > 0) {
+      const initialAmount = Math.floor(maxUserBet * 0.1);
       if (initialAmount > 0) {
         setBetAmount(initialAmount.toString());
       }
     }
-  }, [isOpen, maxAvailable]);
+  }, [isOpen, maxUserBet, setBetAmount]);
 
-  // Calculate opponent's amount based on odds
+  // Calculate opponent's amount based on odds (this will always be <= maxAvailable)
   const calculateOpponentAmount = () => {
     if (amount <= 0) return 0;
     
@@ -125,7 +146,7 @@ export default function BetDialog({
             <Slider
               value={[amount]}
               onValueChange={(values) => setBetAmount(values[0].toString())}
-              max={maxAvailable}
+              max={maxUserBet}
               min={0}
               step={1}
               className="w-full"
