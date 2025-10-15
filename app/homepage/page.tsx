@@ -84,6 +84,13 @@ export default function Homepage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const roomRefs = useRef<{ [key: number]: HTMLButtonElement | null }>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Swipe state
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const [isSwiping, setIsSwiping] = useState(false);
+  const mainContentRef = useRef<HTMLDivElement>(null);
 
   // Get current user data
   const currentUser = dbData.users.find((u) => u.id === 'user_1');
@@ -96,23 +103,6 @@ export default function Homepage() {
   const handleLogin = () => {
     setIsLoggedIn(true);
   };
-
-  // Filter bets by selected room
-  const filteredBets = selectedRoomId !== null
-    ? bets.filter(bet => {
-        // If "My Room" (room 0), show ALL bets where current user has trades (regardless of room)
-        if (selectedRoomId === 0) {
-          const betId = `bet_${bet.id}`;
-          const userHasTrades = dbData.trades.some(
-            trade => trade.betId === betId && trade.userId === 'user_1'
-          );
-          return userHasTrades;
-        }
-        
-        // For other rooms, filter by roomId
-        return bet.roomId === selectedRoomId;
-      })
-    : bets;
 
   const handleRoomSelect = (roomId: number) => {
     setSelectedRoomId(roomId);
@@ -135,6 +125,60 @@ export default function Homepage() {
       });
     }
   };
+
+  // Swipe handlers
+  const minSwipeDistance = 100; // Minimum swipe distance in pixels
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+    setIsSwiping(true);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (touchStart === null) return;
+    
+    const currentTouch = e.targetTouches[0].clientX;
+    const diff = currentTouch - touchStart;
+    
+    // No resistance - direct 1:1 movement for better peek effect
+    setSwipeOffset(diff);
+    setTouchEnd(currentTouch);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) {
+      setIsSwiping(false);
+      setSwipeOffset(0);
+      return;
+    }
+
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    // Get current room index
+    const currentIndex = rooms.findIndex(r => r.id === selectedRoomId);
+
+    if (isLeftSwipe && currentIndex < rooms.length - 1) {
+      // Swipe left: go to next room
+      handleRoomSelect(rooms[currentIndex + 1].id);
+    } else if (isRightSwipe && currentIndex > 0) {
+      // Swipe right: go to previous room
+      handleRoomSelect(rooms[currentIndex - 1].id);
+    }
+
+    // Reset swipe state
+    setTouchStart(null);
+    setTouchEnd(null);
+    setSwipeOffset(0);
+    setIsSwiping(false);
+  };
+
+  // Calculate the transform offset based on selected room
+  const currentRoomIndex = rooms.findIndex(r => r.id === selectedRoomId);
+  const baseOffset = currentRoomIndex * -100; // -100% per room
+  const totalOffset = baseOffset + (swipeOffset / (mainContentRef.current?.offsetWidth || window.innerWidth)) * 100;
 
   return (
     <div className="min-h-screen bg-background">
@@ -253,31 +297,82 @@ export default function Homepage() {
       </div>
 
       {/* Main Content Area */}
-      <main className="px-6 py-8">
-        <div className="space-y-4">
-          {/* Create Bet Button */}
-          <button 
-            onClick={() => setIsCreateBetOpen(true)}
-            className="w-full border-2 border-dashed border-muted-foreground/30 rounded-lg py-4 flex items-center justify-center gap-2 hover:border-primary/50 hover:bg-primary/5 transition-all group"
-          >
-            <Plus className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-            <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
-              Create a Bet
-            </span>
-          </button>
-          
-          {filteredBets.map((bet) => (
-            <Bet
-              key={bet.id}
-              id={bet.id}
-              title={bet.title}
-              imageUrl={bet.imageUrl}
-              amountAtStake={bet.amountAtStake}
-              participants={bet.participants}
-              percentage={bet.percentage}
-              expirationDate={bet.expirationDate}
-            />
-          ))}
+      <main className="overflow-hidden">
+        <div
+          ref={mainContentRef}
+          className="flex touch-pan-y"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          style={{
+            transform: `translateX(${totalOffset}%)`,
+            transition: isSwiping ? 'none' : 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
+        >
+          {rooms.map((room, index) => {
+            // Filter bets for this specific room
+            const roomBets = room.id === 0
+              ? bets.filter(bet => {
+                  const betId = `bet_${bet.id}`;
+                  return dbData.trades.some(
+                    trade => trade.betId === betId && trade.userId === 'user_1'
+                  );
+                })
+              : bets.filter(bet => bet.roomId === room.id);
+
+            // Calculate scale and opacity for peek effect
+            const isCurrentRoom = room.id === selectedRoomId;
+            const distanceFromCurrent = Math.abs(index - currentRoomIndex);
+            const scale = isCurrentRoom ? 1 : 0.95;
+            const opacity = isCurrentRoom ? 1 : 0.4;
+
+            return (
+              <div
+                key={room.id}
+                className="min-w-full px-6 py-8"
+                style={{ 
+                  width: '100%',
+                  transform: `scale(${scale})`,
+                  opacity: isSwiping ? (distanceFromCurrent <= 1 ? 0.6 : 0.3) : opacity,
+                  transition: isSwiping ? 'none' : 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                }}
+              >
+                <div className="space-y-4">
+                  {/* Create Bet Button */}
+                  <button 
+                    onClick={() => setIsCreateBetOpen(true)}
+                    className="w-full border-2 border-dashed border-muted-foreground/30 rounded-lg py-4 flex items-center justify-center gap-2 hover:border-primary/50 hover:bg-primary/5 transition-all group"
+                  >
+                    <Plus className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                      Create a Bet
+                    </span>
+                  </button>
+                  
+                  {/* Bets for this room */}
+                  {roomBets.length > 0 ? (
+                    roomBets.map((bet) => (
+                      <Bet
+                        key={bet.id}
+                        id={bet.id}
+                        title={bet.title}
+                        imageUrl={bet.imageUrl}
+                        amountAtStake={bet.amountAtStake}
+                        participants={bet.participants}
+                        percentage={bet.percentage}
+                        expirationDate={bet.expirationDate}
+                      />
+                    ))
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <p className="text-muted-foreground">No bets in this room yet</p>
+                      <p className="text-sm text-muted-foreground/60 mt-2">Create the first bet!</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </main>
 
