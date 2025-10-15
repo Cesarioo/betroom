@@ -1,17 +1,19 @@
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, LogOut, ChevronDown, Pen, Check, X } from 'lucide-react';
+import { ArrowLeft, LogOut, ChevronDown, Pen, Check, X, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import Image from 'next/image';
 import { useState, useRef, useEffect } from 'react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import AddMoney from './addMoney';
 
 export default function ProfilePage() {
-  const [selectedPoint, setSelectedPoint] = useState<number | null>(null);
   const [showBetHistory, setShowBetHistory] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isAddMoneyOpen, setIsAddMoneyOpen] = useState(false);
+  const [moneyMode, setMoneyMode] = useState<'add' | 'withdraw'>('add');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Mock user data
@@ -82,19 +84,20 @@ export default function ProfilePage() {
     };
   }, [tempProfileImage, profileImage]);
 
-  // Mock PnL data (last 7 months)
-  const pnlData = [
-    { month: 'Apr', value: 120, isProfit: true },
-    { month: 'May', value: -80, isProfit: false },
-    { month: 'Jun', value: 200, isProfit: true },
-    { month: 'Jul', value: 150, isProfit: true },
-    { month: 'Aug', value: -50, isProfit: false },
-    { month: 'Sep', value: 300, isProfit: true },
-    { month: 'Oct', value: 180, isProfit: true },
+  // Mock portfolio value data (last 7 months) - cumulative, always positive
+  const portfolioData = [
+    { month: 'Apr', value: 1000 },
+    { month: 'May', value: 1120 },
+    { month: 'Jun', value: 1040 },
+    { month: 'Jul', value: 1240 },
+    { month: 'Aug', value: 1390 },
+    { month: 'Sep', value: 1340 },
+    { month: 'Oct', value: 1640 },
   ];
 
-  const maxValue = Math.max(...pnlData.map(d => Math.abs(d.value)));
-  const totalPnL = pnlData.reduce((sum, d) => sum + d.value, 0);
+  const startingValue = portfolioData[0].value;
+  const currentValue = portfolioData[portfolioData.length - 1].value;
+  const totalPnL = currentValue - startingValue;
 
   // Mock bet history data
   const betHistory = [
@@ -247,97 +250,106 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* PnL Graph */}
+        {/* Portfolio Value Graph */}
         <div className="bg-card border border-border rounded-lg p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-foreground">Profit & Loss</h3>
-            <div className="text-right">
-              <p className="text-xs text-muted-foreground">Total</p>
-              <p className={`text-lg font-bold ${totalPnL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                {totalPnL >= 0 ? '+$' : '-$'}{Math.abs(totalPnL)}
-              </p>
+            <h3 className="text-lg font-semibold text-foreground">Portfolio: ${currentValue}</h3>
+            <div className="flex items-center gap-2">
+            <button
+                onClick={() => {
+                  setMoneyMode('withdraw');
+                  setIsAddMoneyOpen(true);
+                }}
+                className="p-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 transition-colors"
+                title="Withdraw Money"
+              >
+                <ArrowUpFromLine className="w-5 h-5 text-red-500" />
+              </button>
+              <button
+                onClick={() => {
+                  setMoneyMode('add');
+                  setIsAddMoneyOpen(true);
+                }}
+                className="p-2 rounded-lg bg-green-500/20 hover:bg-green-500/30 transition-colors"
+                title="Add Money"
+              >
+                <ArrowDownToLine className="w-5 h-5 text-green-500" />
+              </button>
             </div>
           </div>
           
-          {/* Line Graph */}
-          <div className="relative h-40 mt-4">
-            <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-              {/* Grid lines */}
-              <line x1="0" y1="50" x2="100" y2="50" stroke="currentColor" strokeWidth="0.2" className="text-border" />
-              
-              {/* Line path */}
-              <polyline
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="0.5"
-                className={totalPnL >= 0 ? 'text-green-500' : 'text-red-500'}
-                points={pnlData.map((data, index) => {
-                  const x = (index / (pnlData.length - 1)) * 100;
-                  const y = 50 - (data.value / maxValue) * 40;
-                  return `${x},${y}`;
-                }).join(' ')}
-              />
-              
-              {/* Area under the line */}
-              <polygon
-                fill="currentColor"
-                className={totalPnL >= 0 ? 'text-green-500/20' : 'text-red-500/20'}
-                points={
-                  pnlData.map((data, index) => {
-                    const x = (index / (pnlData.length - 1)) * 100;
-                    const y = 50 - (data.value / maxValue) * 40;
-                    return `${x},${y}`;
-                  }).join(' ') + ` 100,50 0,50`
-                }
-              />
-            </svg>
-            
-            {/* Data points */}
-            <div className="absolute inset-0 flex justify-between items-center">
-              {pnlData.map((data, index) => {
-                const yPosition = 50 - (data.value / maxValue) * 40;
-                return (
-                  <div 
-                    key={index} 
-                    className="flex flex-col items-center relative"
-                    style={{ position: 'absolute', left: `${(index / (pnlData.length - 1)) * 100}%`, top: `${yPosition}%`, transform: 'translate(-50%, -50%)' }}
-                  >
-                    <button
-                      onClick={() => setSelectedPoint(selectedPoint === index ? null : index)}
-                      className={`w-3 h-3 rounded-full ${data.isProfit ? 'bg-green-500' : 'bg-red-500'} border-2 border-background cursor-pointer hover:scale-150 transition-transform ${selectedPoint === index ? 'scale-150' : ''}`}
-                    />
-                    
-                    {/* Tooltip */}
-                    {selectedPoint === index && (
-                      <div className="absolute bottom-full mb-2 bg-card border border-border rounded-lg shadow-lg p-3 min-w-[120px] z-20">
-                        <div className="text-center">
-                          <p className="text-xs text-muted-foreground mb-1">{data.month} 2024</p>
-                          <p className={`text-lg font-bold ${data.isProfit ? 'text-green-500' : 'text-red-500'}`}>
-                            {data.isProfit ? '+' : ''}{data.value > 0 ? '$' : '-$'}{Math.abs(data.value)}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {data.isProfit ? 'Profit' : 'Loss'}
-                          </p>
+          {/* Recharts Graph */}
+          <div className="w-full h-56 mt-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={portfolioData}
+                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="portfolioGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#22c55e" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#22c55e" stopOpacity={0.05}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)" />
+                <XAxis 
+                  dataKey="month" 
+                  stroke="#ffffff"
+                  fontSize={12}
+                  tickLine={false}
+                  tick={{ fill: '#ffffff' }}
+                />
+                <YAxis 
+                  stroke="#ffffff"
+                  fontSize={12}
+                  tickLine={false}
+                  tick={{ fill: '#ffffff' }}
+                  tickFormatter={(value) => `$${value}`}
+                />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      const monthChange = payload[0].value as number - startingValue;
+                      const monthChangePercent = ((monthChange / startingValue) * 100).toFixed(1);
+                      return (
+                        <div className="bg-card border border-border rounded-lg shadow-lg p-3 min-w-[140px]">
+                          <div className="text-center">
+                            <p className="text-xs text-white/70 mb-1">{data.month} 2024</p>
+                            <p className="text-lg font-bold text-white">
+                              ${data.value}
+                            </p>
+                            <p className={`text-xs font-medium mt-1 ${monthChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                              {monthChange >= 0 ? '+' : ''}{monthChange >= 0 ? '$' : '-$'}{Math.abs(monthChange)} ({monthChange >= 0 ? '+' : ''}{monthChangePercent}%)
+                            </p>
+                          </div>
                         </div>
-                        {/* Arrow */}
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px]">
-                          <div className="w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-border"></div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            
-            {/* Month labels */}
-            <div className="absolute -bottom-6 left-0 right-0 flex justify-between px-1">
-              {pnlData.map((data, index) => (
-                <span key={index} className="text-xs text-muted-foreground">
-                  {data.month}
-                </span>
-              ))}
-            </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="value" 
+                  stroke="#22c55e"
+                  strokeWidth={3}
+                  fill="url(#portfolioGradient)"
+                  dot={{ 
+                    r: 5, 
+                    strokeWidth: 2,
+                    stroke: '#1a1a1a',
+                    fill: '#22c55e'
+                  }}
+                  activeDot={{ 
+                    r: 7,
+                    strokeWidth: 3,
+                    stroke: '#1a1a1a',
+                    fill: '#22c55e'
+                  }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
@@ -474,6 +486,14 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Add/Withdraw Money Dialog */}
+      <AddMoney 
+        open={isAddMoneyOpen} 
+        onOpenChange={setIsAddMoneyOpen}
+        mode={moneyMode}
+        currentBalance={userCash}
+      />
     </div>
   );
 }
