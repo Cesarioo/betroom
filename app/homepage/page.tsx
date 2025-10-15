@@ -335,6 +335,7 @@ export default function Homepage() {
                   transform: `scale(${scale})`,
                   opacity: isSwiping ? (distanceFromCurrent <= 1 ? 0.6 : 0.3) : opacity,
                   transition: isSwiping ? 'none' : 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                  pointerEvents: isCurrentRoom ? 'auto' : 'none',
                 }}
               >
                 <div className="space-y-4">
