@@ -11,6 +11,10 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ChevronDown, Crown } from 'lucide-react';
+import dbData from '@/backend/db.json';
 
 interface AddGroupProps {
   open: boolean;
@@ -18,72 +22,63 @@ interface AddGroupProps {
 }
 
 export default function AddGroup({ open, onOpenChange }: AddGroupProps) {
-  const [inviteCode, setInviteCode] = useState(['', '', '', '', '', '']);
+  const [roomName, setRoomName] = useState('');
+  const [selectedParticipants, setSelectedParticipants] = useState<string[]>(['user_1']);
+  const [crownedParticipants, setCrownedParticipants] = useState<string[]>(['user_1']);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
+
+  // Get all participants except current user (user_1)
+  const availableParticipants = dbData.users.filter(user => user.id !== 'user_1');
+  
+  // Filter participants by search query
+  const filteredParticipants = availableParticipants.filter(user =>
+    user.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   // Reset state when dialog closes
   useEffect(() => {
     if (!open) {
-      setInviteCode(['', '', '', '', '', '']);
+      setRoomName('');
+      setSelectedParticipants(['user_1']);
+      setCrownedParticipants(['user_1']);
+      setSearchQuery('');
     }
   }, [open]);
 
-  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Backspace' && !inviteCode[index] && index > 0) {
-      // Move to previous input on backspace if current is empty
-      const inputs = document.querySelectorAll<HTMLInputElement>('.code-input');
-      inputs[index - 1]?.focus();
-    }
-  };
-
-  const handleFocus = (index: number) => {
-    // If all boxes are empty and user clicks on any box other than the first
-    const allEmpty = inviteCode.every(digit => digit === '');
-    if (allEmpty && index !== 0) {
-      const inputs = document.querySelectorAll<HTMLInputElement>('.code-input');
-      inputs[0]?.focus();
-    }
-  };
-
-  const handleChange = (index: number, value: string) => {
-    // Only allow single digit numbers
-    if (value && !/^[0-9]$/.test(value)) return;
+  // Toggle participant selection (3-state cycle)
+  const toggleParticipant = (userId: string) => {
+    const isCurrentlySelected = selectedParticipants.includes(userId);
+    const isCurrentlyCrowned = crownedParticipants.includes(userId);
     
-    const newCode = [...inviteCode];
-    newCode[index] = value;
-    setInviteCode(newCode);
-
-    // Auto-focus next input
-    if (value && index < 5) {
-      const inputs = document.querySelectorAll<HTMLInputElement>('.code-input');
-      inputs[index + 1]?.focus();
+    if (!isCurrentlySelected) {
+      // State 1 -> State 2: Not selected -> Selected (no crown)
+      setSelectedParticipants(prev => [userId, ...prev]);
+    } else if (isCurrentlySelected && !isCurrentlyCrowned) {
+      // State 2 -> State 3: Selected (no crown) -> Selected with crown
+      setCrownedParticipants(prev => [userId, ...prev]);
+    } else {
+      // State 3 -> State 1: Selected with crown -> Not selected
+      setSelectedParticipants(prev => prev.filter(id => id !== userId));
+      setCrownedParticipants(prev => prev.filter(id => id !== userId));
     }
-  };
-
-  const handlePaste = (e: React.ClipboardEvent) => {
-    e.preventDefault();
-    const pasteData = e.clipboardData.getData('text').replace(/[^0-9]/g, '');
-    const digits = pasteData.slice(0, 6).split('');
-    
-    const newCode = [...inviteCode];
-    digits.forEach((digit, index) => {
-      if (index < 6) newCode[index] = digit;
-    });
-    setInviteCode(newCode);
-
-    // Focus the next empty input or last input
-    const nextEmptyIndex = newCode.findIndex(val => !val);
-    const focusIndex = nextEmptyIndex === -1 ? 5 : nextEmptyIndex;
-    const inputs = document.querySelectorAll<HTMLInputElement>('.code-input');
-    inputs[focusIndex]?.focus();
   };
 
   const handleAddGroup = () => {
-    const code = inviteCode.join('');
     // TODO: Handle adding group logic here
-    console.log('Invite code:', `${code.slice(0, 3)}-${code.slice(3)}`);
+    console.log('Room Name:', roomName);
+    console.log('Selected Participants:', selectedParticipants);
+    console.log('Crowned Participants:', crownedParticipants);
+    
+    // Reset and close
+    setRoomName('');
+    setSelectedParticipants(['user_1']);
+    setCrownedParticipants(['user_1']);
+    setSearchQuery('');
+    onOpenChange(false);
   };
 
-  const isComplete = inviteCode.every(digit => digit !== '');
+  const isComplete = roomName.trim() !== '' && selectedParticipants.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -94,52 +89,144 @@ export default function AddGroup({ open, onOpenChange }: AddGroupProps) {
         <DialogHeader>
           <DialogTitle>Add Group</DialogTitle>
           <DialogDescription>
-            Enter your invite code to join a group.
+            Select members and give your group a name.
           </DialogDescription>
         </DialogHeader>
         
-        <div className="py-4">
-          <div className="flex items-center justify-center gap-1.5 sm:gap-2">
-            {/* First 3 digits */}
-            <div className="flex gap-1.5 sm:gap-2">
-              {[0, 1, 2].map((index) => (
-                <input
-                  key={index}
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={inviteCode[index]}
-                  onChange={(e) => handleChange(index, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(index, e)}
-                  onFocus={() => handleFocus(index)}
-                  onPaste={handlePaste}
-                  autoFocus={false}
-                  className="code-input w-10 h-12 sm:w-14 sm:h-16 text-center text-lg sm:text-2xl font-bold border-2 border-input bg-background rounded-md focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-400/50 transition-all"
-                />
-              ))}
+        <div className="py-4 space-y-4">
+          {/* Selected Participants Display */}
+          {selectedParticipants.length > 0 && (
+            <div className="flex justify-center">
+              <div className="flex -space-x-4">
+                {selectedParticipants.map((userId, index) => {
+                  const user = dbData.users.find(u => u.id === userId);
+                  const isCrowned = crownedParticipants.includes(userId);
+                  return user ? (
+                    <div key={userId} className="relative" style={{ zIndex: selectedParticipants.length - index }}>
+                      <Avatar className="w-16 h-16 ring-4 ring-background">
+                        <AvatarImage src={user.profileImage} alt={user.name} />
+                        <AvatarFallback className="text-lg">{user.name[0]}</AvatarFallback>
+                      </Avatar>
+                      {isCrowned && (
+                        <Crown className="absolute -top-2 -right-2 h-6 w-6 text-red-500 fill-red-500" />
+                      )}
+                    </div>
+                  ) : null;
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Room Name Input */}
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Group Name</label>
+            <Input
+              type="text"
+              placeholder="My Awesome Group"
+              value={roomName}
+              onChange={(e) => setRoomName(e.target.value)}
+              className="w-full"
+            />
+          </div>
+
+          {/* Participants Selector */}
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Members</label>
+            <Popover open={isParticipantsOpen} onOpenChange={setIsParticipantsOpen} modal={true}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-transparent dark:bg-primary/5 px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {selectedParticipants.length === 0 ? (
+                    <span className="text-muted-foreground">Select members</span>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <div className="flex -space-x-2">
+                        {selectedParticipants.slice(0, 3).map((userId, index) => {
+                          const user = dbData.users.find(u => u.id === userId);
+                          const isCrowned = crownedParticipants.includes(userId);
+                          return user ? (
+                            <div key={userId} className="relative" style={{ zIndex: 3 - index }}>
+                              <Avatar className="w-6 h-6 ring-2 ring-background">
+                                <AvatarImage src={user.profileImage} alt={user.name} />
+                                <AvatarFallback className="text-[10px]">{user.name[0]}</AvatarFallback>
+                              </Avatar>
+                              {isCrowned && (
+                                <Crown className="absolute -top-1 -right-1 h-3 w-3 text-red-500 fill-red-500" />
+                              )}
+                            </div>
+                          ) : null;
+                        })}
+                      </div>
+                      {selectedParticipants.length > 3 && (
+                        <span className="text-xs text-muted-foreground">
+                          +{selectedParticipants.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <ChevronDown className="h-4 w-4 opacity-50 flex-shrink-0" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent 
+                className="w-80 p-0 max-h-[calc(100vh-120px)]" 
+                align="start" 
+                sideOffset={4}
+                onOpenAutoFocus={(e) => e.preventDefault()}
+              >
+                <div className="flex flex-col">
+                  {/* Search Input */}
+                  <div className="border-b">
+                    <div className="px-3 py-2 flex items-center min-h-[42px]">
+                      <Input
+                        placeholder="Search..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="h-[26px] text-sm"
+                      />
+                    </div>
             </div>
             
-            {/* Dash separator */}
-            <span className="text-lg sm:text-2xl font-bold text-muted-foreground">-</span>
-            
-            {/* Last 3 digits */}
-            <div className="flex gap-1.5 sm:gap-2">
-              {[3, 4, 5].map((index) => (
-                <input
-                  key={index}
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={inviteCode[index]}
-                  onChange={(e) => handleChange(index, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(index, e)}
-                  onFocus={() => handleFocus(index)}
-                  onPaste={handlePaste}
-                  autoFocus={false}
-                  className="code-input w-10 h-12 sm:w-14 sm:h-16 text-center text-lg sm:text-2xl font-bold border-2 border-input bg-background rounded-md focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-400/50 transition-all"
-                />
-              ))}
-            </div>
+                  {/* Users List */}
+                  <div className="py-1 space-y-1 overflow-y-auto max-h-60 overscroll-contain"
+                    onWheel={(e) => e.stopPropagation()}
+                  >
+                    {filteredParticipants.length === 0 ? (
+                      <div className="p-4 text-center text-sm text-muted-foreground">
+                        No users found
+                      </div>
+                    ) : (
+                      filteredParticipants.map((user) => {
+                        const isSelected = selectedParticipants.includes(user.id);
+                        const isCrowned = crownedParticipants.includes(user.id);
+                        return (
+                          <button
+                            key={user.id}
+                            type="button"
+                            onClick={() => toggleParticipant(user.id)}
+                            className={`w-full flex items-center gap-2 px-3 py-1.5 hover:bg-accent transition-colors ${isSelected ? 'bg-accent/50' : ''}`}
+                          >
+                            <Avatar className="w-6 h-6 flex-shrink-0">
+                              <AvatarImage src={user.profileImage} alt={user.name} />
+                              <AvatarFallback className="text-[10px]">{user.name[0]}</AvatarFallback>
+                            </Avatar>
+                            <span className="flex-1 text-left text-sm">{user.name}</span>
+                            {isSelected && (
+                              isCrowned ? (
+                                <Crown className="h-4 w-4 text-red-500 flex-shrink-0" />
+                              ) : (
+                                <Crown className="h-4 w-4 text-muted-foreground/40 flex-shrink-0" />
+                              )
+                            )}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
         
