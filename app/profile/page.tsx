@@ -1,9 +1,8 @@
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, LogOut, ChevronDown, Pen, Check, X, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
+import { ArrowLeft, LogOut, ChevronDown, Pen, Check, X, ArrowDownToLine, ArrowUpFromLine, ThumbsUp, ThumbsDown } from 'lucide-react';
 import Link from 'next/link';
-import { Card, CardContent } from '@/components/ui/card';
 import Image from 'next/image';
 import { useState, useRef, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
@@ -406,80 +405,68 @@ export default function ProfilePage() {
             </div>
 
             {/* Bet History View */}
-            <div className={`space-y-4 transition-all duration-300 ${
+            <div className={`transition-all duration-300 ${
               showBetHistory 
                 ? 'opacity-100 translate-y-0' 
                 : 'opacity-0 translate-y-[-20px] pointer-events-none absolute inset-0'
             }`}>
-              {betHistory.map((bet) => {
+              {betHistory.map((bet, index) => {
                 const won = (bet.userChoice === 'yes' && bet.finalOutcome === 100) || 
                             (bet.userChoice === 'no' && bet.finalOutcome === 0);
                 const pnl = won ? bet.amountBet * (100 / bet.boughtAt - 1) : -bet.amountBet;
                 
                 return (
-                  <Card key={bet.id} className="w-full">
-                    <CardContent className="p-3 space-y-2">
-                      {/* Top Row: Image, Title, and Outcome Badge */}
-                      <div className="flex items-center gap-3">
-                        {/* Square Image */}
-                        <div className="relative w-16 h-16 rounded-md overflow-hidden bg-muted flex-shrink-0">
-                          <Image
-                            src={bet.imageUrl}
-                            alt={bet.title}
-                            fill
-                            className="object-cover"
-                            sizes="64px"
-                          />
-                        </div>
-
-                        {/* Title and Outcome */}
-                        <div className="flex-1 flex items-center justify-between gap-3">
-                          <h3 className="text-sm font-semibold text-foreground line-clamp-2 flex-1">
-                            {bet.title}
-                          </h3>
-                          
-                          {/* Outcome Badge */}
-                          <div className={`px-3 py-1 rounded-full text-xs font-bold ${
-                            won ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'
-                          }`}>
-                            {won ? 'WON' : 'LOST'}
-                          </div>
-                        </div>
+                  <div key={bet.id} className="w-full">
+                    {/* Separator */}
+                    {index > 0 && <div className="border-t border-border mb-4" />}
+                    
+                    <div className="flex items-center gap-3 mb-4">
+                      {/* Square Image */}
+                      <div className="relative w-12 h-12 rounded-md overflow-hidden bg-muted flex-shrink-0">
+                        <Image
+                          src={bet.imageUrl}
+                          alt={bet.title}
+                          fill
+                          className="object-cover"
+                          sizes="48px"
+                        />
                       </div>
 
-                      {/* Bet Details */}
-                      <div className="space-y-1 text-xs">
-                        <div className="flex items-center gap-1">
-                          <span className="text-muted-foreground">You bought</span>
+                      {/* Title and Details */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm font-semibold text-foreground truncate mb-1">
+                          {bet.title}
+                        </h3>
+                        
+                        {/* Bet Info in one line */}
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
                           <span className={`font-semibold ${
                             bet.userChoice === 'yes' ? 'text-green-500' : 'text-red-500'
                           }`}>
                             {bet.userChoice.toUpperCase()}
                           </span>
-                          <span className="text-muted-foreground">at {bet.boughtAt}% for ${bet.amountBet}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-muted-foreground">Outcome:</span>
-                          <span className={`font-semibold ${
-                            bet.finalOutcome === 100 ? 'text-green-500' : 'text-red-500'
-                          }`}>
-                            {bet.finalOutcome === 100 ? 'YES' : 'NO'}
-                          </span>
-                          <span className="text-muted-foreground">({bet.finalOutcome}%)</span>
+                          <span>at {bet.boughtAt}%</span>
+                          <span>•</span>
+                          <span>${bet.amountBet}</span>
                         </div>
                       </div>
 
-                      {/* PnL */}
-                      <div className="pt-2 border-t border-border flex justify-between items-center">
-                        <span className="text-xs text-muted-foreground">Profit/Loss</span>
-                        <span className={`text-sm font-bold ${
+                      {/* Outcome Badge and PnL */}
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <span className={`text-sm font-bold text-right w-20 ${
                           pnl >= 0 ? 'text-green-500' : 'text-red-500'
                         }`}>
                           {pnl >= 0 ? '+' : ''}{pnl >= 0 ? '$' : '-$'}{Math.abs(pnl).toFixed(2)}
                         </span>
+                        
+                        <div className={`p-1.5 rounded-full ${
+                          won ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'
+                        }`}>
+                          {won ? <ThumbsUp className="w-4 h-4" /> : <ThumbsDown className="w-4 h-4" />}
+                        </div>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
                 );
               })}
             </div>
