@@ -189,7 +189,7 @@ export default function AddGroup({ open, onOpenChange }: AddGroupProps) {
             </div>
             
                   {/* Users List */}
-                  <div className="py-1 space-y-1 overflow-y-auto max-h-60 overscroll-contain"
+                  <div className="py-1 space-y-1 overflow-y-auto max-h-40 overscroll-contain"
                     onWheel={(e) => e.stopPropagation()}
                   >
                     {filteredParticipants.length === 0 ? (
