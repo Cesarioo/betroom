@@ -128,18 +128,38 @@ export default function Homepage() {
 
   // Swipe handlers
   const minSwipeDistance = 100; // Minimum swipe distance in pixels
+  const minHorizontalSwipeThreshold = 10; // Pixels to determine horizontal intent
+
+  // Check if any dialog is open
+  const isAnyDialogOpen = () => {
+    return isCreateBetOpen || isAddRoomOpen || document.querySelector('[role="dialog"]') !== null;
+  };
 
   const onTouchStart = (e: React.TouchEvent) => {
+    // Don't allow swiping if a dialog is open
+    if (isAnyDialogOpen()) return;
+    
     setTouchEnd(null);
     setTouchStart(e.targetTouches[0].clientX);
     setIsSwiping(true);
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
+    // Don't allow swiping if a dialog is open
+    if (isAnyDialogOpen()) return;
+    
     if (touchStart === null) return;
     
     const currentTouch = e.targetTouches[0].clientX;
     const diff = currentTouch - touchStart;
+    
+    // Determine if this is a horizontal swipe
+    const isHorizontalSwipe = Math.abs(diff) > minHorizontalSwipeThreshold;
+    
+    // If horizontal swipe detected, prevent vertical scrolling
+    if (isHorizontalSwipe) {
+      e.preventDefault();
+    }
     
     // No resistance - direct 1:1 movement for better peek effect
     setSwipeOffset(diff);
@@ -147,6 +167,15 @@ export default function Homepage() {
   };
 
   const onTouchEnd = () => {
+    // Don't process swipe if a dialog is open
+    if (isAnyDialogOpen()) {
+      setIsSwiping(false);
+      setSwipeOffset(0);
+      setTouchStart(null);
+      setTouchEnd(null);
+      return;
+    }
+    
     if (!touchStart || !touchEnd) {
       setIsSwiping(false);
       setSwipeOffset(0);
