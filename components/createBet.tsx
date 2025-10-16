@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Upload, ChevronDown, ChevronRight, Check, Crown } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
 import dbData from '@/backend/db.json';
 
 interface CreateBetProps {
@@ -27,7 +28,7 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
   const [expirationDate, setExpirationDate] = useState('');
   const [amount, setAmount] = useState('');
   const [initialChoice, setInitialChoice] = useState<'yes' | 'no'>('yes');
-  const [initialPercentage, setInitialPercentage] = useState('');
+  const [initialPercentage, setInitialPercentage] = useState(50);
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
   const [crownedParticipants, setCrownedParticipants] = useState<string[]>([]);
   const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
@@ -256,7 +257,7 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
     setExpirationDate('');
     setAmount('');
     setInitialChoice('yes');
-    setInitialPercentage('');
+    setInitialPercentage(50);
     setSelectedParticipants([]);
     setCrownedParticipants([]);
     setSelectedRooms([]);
@@ -266,7 +267,7 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
     onOpenChange(false);
   };
 
-  const isComplete = betName && imageUrl && expirationDate && amount && initialPercentage && allSelectedMembers.length > 0;
+  const isComplete = betName && imageUrl && expirationDate && amount && initialPercentage >= 0 && initialPercentage <= 100 && allSelectedMembers.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -283,7 +284,7 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
 
         <div className="py-4">
           {/* Top Row: Image, Title, Amount and Chance */}
-          <div className="flex gap-3 mb-4 items-center">
+          <div className="flex mb-4 items-center">
             {/* Image Upload Area */}
             <button 
               type="button"
@@ -307,7 +308,7 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
             />
 
             {/* Title and Amount/Chance */}
-            <div className="flex-1 flex flex-col justify-center">
+            <div className="ml-2 flex-1 flex flex-col justify-center">
               {/* Title Input */}
               <textarea
                 ref={textareaRef}
@@ -321,10 +322,10 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
                 }}
               />
               
-              {/* Amount and Chance Row */}
-              <div className="grid grid-cols-2 gap-2">
-                {/* Amount */}
-                <div className="flex items-center">
+              {/* Amount and Percentage Slider */}
+              <div className="grid grid-cols-5 items-center">
+                {/* Amount - 1/4 */}
+                <div className="flex items-center col-span-1">
                   <span className="text-muted-foreground text-base sm:text-lg">$</span>
                   <input
                     type="number"
@@ -336,19 +337,36 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
                   />
                 </div>
 
-                {/* Chance/Percentage */}
-                <div className="flex items-center">
-                  <input
-                    type="number"
-                    placeholder="0"
-                    min="0"
-                    max="100"
-                    value={initialPercentage}
-                    onChange={(e) => setInitialPercentage(e.target.value)}
-                    style={{ width: `${Math.max((initialPercentage || '0').length, 1)}ch` }}
-                    className="bg-transparent border-0 text-base sm:text-lg font-semibold text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                  <span className="text-muted-foreground text-base sm:text-lg">%</span>
+                {/* Percentage Slider and Display - 3/4 */}
+                <div className="relative py-2 col-span-4 flex items-center gap-2">
+                  {/* Slider with margins for avatar space */}
+                  <div className="flex-1 relative py-2 ml-3">
+                    {/* User avatar positioned at slider thumb */}
+                    <div 
+                      className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 pointer-events-none transition-all"
+                      style={{ left: `${initialChoice === 'no' ? (100 - initialPercentage) : initialPercentage}%` }}
+                    >
+                      <Avatar className={`w-6 h-6 border-2 ${initialChoice === 'yes' ? 'border-green-500' : 'border-red-500'}`}>
+                        <AvatarImage src={dbData.users[0].profileImage} alt="You" />
+                        <AvatarFallback className="text-[10px]">Y</AvatarFallback>
+                      </Avatar>
+                    </div>
+                    
+                    <Slider
+                      value={[initialPercentage]}
+                      onValueChange={(values) => setInitialPercentage(values[0])}
+                      max={100}
+                      min={0}
+                      step={10}
+                      className="w-full [&_[role=slider]]:opacity-0"
+                      inverted={initialChoice === 'no'}
+                    />
+                  </div>
+                  
+                  {/* Percentage Display - fixed width */}
+                  <span className="text-sm font-semibold text-foreground w-10 text-right">
+                    {initialPercentage}%
+                  </span>
                 </div>
               </div>
             </div>

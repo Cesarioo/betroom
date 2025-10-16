@@ -121,14 +121,14 @@ export default function AddGroup({ open, onOpenChange }: AddGroupProps) {
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Group Name</label>
             <Input
-              type="text"
+                  type="text"
               placeholder="My Awesome Group"
               value={roomName}
               onChange={(e) => setRoomName(e.target.value)}
               className="w-full"
             />
-          </div>
-
+            </div>
+            
           {/* Participants Selector */}
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Members</label>

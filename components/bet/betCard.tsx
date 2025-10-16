@@ -9,6 +9,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import dbData from '@/backend/db.json';
 import BetDialog from './betDialog';
 import BetParticipants from './betParticipants';
+import ResolveDialog from './resolve';
 
 interface Participant {
   name: string;
@@ -17,6 +18,7 @@ interface Participant {
 
 interface BetProps {
   id: number;
+  roomId: number;
   title: string;
   imageUrl: string;
   amountAtStake: number;
@@ -27,6 +29,7 @@ interface BetProps {
 
 export default function Bet({
   id,
+  roomId,
   title,
   imageUrl,
   amountAtStake,
@@ -36,6 +39,7 @@ export default function Bet({
 }: BetProps) {
   const [selectedAnswer, setSelectedAnswer] = useState<'yes' | 'no' | null>(null);
   const [isBetDialogOpen, setIsBetDialogOpen] = useState(false);
+  const [isResolveDialogOpen, setIsResolveDialogOpen] = useState(false);
   const [betAmount, setBetAmount] = useState('');
   const [betChoice, setBetChoice] = useState<'yes' | 'no'>('yes');
   const [isExpanded, setIsExpanded] = useState(false);
@@ -78,6 +82,14 @@ export default function Bet({
 
   // Get current user (user_1)
   const currentUser = dbData.users.find((u) => u.id === 'user_1');
+  
+  // Check if bet is expired
+  const isBetExpired = new Date(expirationDate) < new Date();
+  
+  // Check if current user is admin of this room
+  const roomIdString = `room_${roomId}`;
+  const userRoom = currentUser?.rooms.find((r) => r.id === roomIdString);
+  const isUserAdmin = userRoom?.isAdmin || false;
   
   // Get opponent and max available based on selected choice
   const getOpponentAndMax = (choice: 'yes' | 'no') => {
@@ -124,29 +136,38 @@ export default function Bet({
     const date = new Date(dateString);
     const now = new Date();
     const diffMs = date.getTime() - now.getTime();
+    const diffHours = diffMs / (1000 * 60 * 60);
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     
+    // Only show time if less than 24 hours away
+    const showTime = diffHours < 24 && diffHours >= 0;
+    
     // Format time
-    const time = date.toLocaleTimeString('en-US', { 
+    const time = showTime ? date.toLocaleTimeString('en-US', { 
       hour: 'numeric', 
       minute: '2-digit',
       hour12: true 
-    });
+    }) : '';
     
     // Format date based on proximity
     if (diffDays === 0) {
-      return `Today ${time}`;
+      // For today, show "in X hours"
+      if (showTime) {
+        const hoursLeft = Math.floor(diffHours);
+        return `in ${hoursLeft} hour${hoursLeft !== 1 ? 's' : ''}`;
+      }
+      return 'Today';
     } else if (diffDays === 1) {
-      return `Tomorrow ${time}`;
+      return showTime ? `Tomorrow ${time}` : 'Tomorrow';
     } else if (diffDays < 7) {
       const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
-      return `${dayName} ${time}`;
+      return dayName;
     } else {
       const dateStr = date.toLocaleDateString('en-US', { 
         month: 'short', 
         day: 'numeric' 
       });
-      return `${dateStr} ${time}`;
+      return dateStr;
     }
   };
 
@@ -221,49 +242,67 @@ export default function Bet({
           </div>
         </div>
 
-        {/* Yes/No Buttons */}
-        <div className="flex gap-2">
-          <Button
-            variant={selectedAnswer === 'yes' ? 'default' : 'outline'}
-            onClick={() => handleBetClick('yes')}
-            className={`flex-1 flex items-center justify-center gap-2 ${selectedAnswer === 'yes' ? 'bg-green-600 hover:bg-green-700 border-green-600' : ''}`}
-          >
-            <span>Yes</span>
-            {yesButtonOrders.length > 0 && (
-              <div className="flex -space-x-1.5">
-                {yesButtonOrders.slice(0, 3).map((order) => {
-                  const user = dbData.users.find((u) => u.id === order.userId);
-                  return user ? (
-                    <Avatar key={order.id} className="w-4 h-4">
-                      <AvatarImage src={user.profileImage} alt={user.name} />
-                      <AvatarFallback className="text-[8px]">{user.name[0]}</AvatarFallback>
-                    </Avatar>
-                  ) : null;
-                })}
-              </div>
-            )}
-          </Button>
-          <Button
-            variant={selectedAnswer === 'no' ? 'default' : 'outline'}
-            onClick={() => handleBetClick('no')}
-            className={`flex-1 flex items-center justify-center gap-2 ${selectedAnswer === 'no' ? 'bg-red-600 hover:bg-red-700 border-red-600' : ''}`}
-          >
-            <span>No</span>
-            {noButtonOrders.length > 0 && (
-              <div className="flex -space-x-1.5">
-                {noButtonOrders.slice(0, 3).map((order) => {
-                  const user = dbData.users.find((u) => u.id === order.userId);
-                  return user ? (
-                    <Avatar key={order.id} className="w-4 h-4">
-                      <AvatarImage src={user.profileImage} alt={user.name} />
-                      <AvatarFallback className="text-[8px]">{user.name[0]}</AvatarFallback>
-                    </Avatar>
-                  ) : null;
-                })}
-              </div>
-            )}
-          </Button>
-        </div>
+        {/* Yes/No Buttons or Resolve Button */}
+        {isBetExpired ? (
+          isUserAdmin ? (
+            <Button
+              onClick={() => setIsResolveDialogOpen(true)}
+              className="w-full bg-primary hover:bg-primary/90"
+            >
+              Resolve the Bet
+            </Button>
+          ) : (
+            <Button
+              disabled
+              className="w-full bg-muted/50 text-muted-foreground cursor-not-allowed hover:bg-muted/50"
+            >
+              Resolution incoming...
+            </Button>
+          )
+        ) : (
+          <div className="flex gap-2">
+            <Button
+              variant={selectedAnswer === 'yes' ? 'default' : 'outline'}
+              onClick={() => handleBetClick('yes')}
+              className={`flex-1 flex items-center justify-center gap-2 ${selectedAnswer === 'yes' ? 'bg-green-600 hover:bg-green-700 border-green-600' : ''}`}
+            >
+              <span>Yes</span>
+              {yesButtonOrders.length > 0 && (
+                <div className="flex -space-x-1.5">
+                  {yesButtonOrders.slice(0, 3).map((order) => {
+                    const user = dbData.users.find((u) => u.id === order.userId);
+                    return user ? (
+                      <Avatar key={order.id} className="w-4 h-4">
+                        <AvatarImage src={user.profileImage} alt={user.name} />
+                        <AvatarFallback className="text-[8px]">{user.name[0]}</AvatarFallback>
+                      </Avatar>
+                    ) : null;
+                  })}
+                </div>
+              )}
+            </Button>
+            <Button
+              variant={selectedAnswer === 'no' ? 'default' : 'outline'}
+              onClick={() => handleBetClick('no')}
+              className={`flex-1 flex items-center justify-center gap-2 ${selectedAnswer === 'no' ? 'bg-red-600 hover:bg-red-700 border-red-600' : ''}`}
+            >
+              <span>No</span>
+              {noButtonOrders.length > 0 && (
+                <div className="flex -space-x-1.5">
+                  {noButtonOrders.slice(0, 3).map((order) => {
+                    const user = dbData.users.find((u) => u.id === order.userId);
+                    return user ? (
+                      <Avatar key={order.id} className="w-4 h-4">
+                        <AvatarImage src={user.profileImage} alt={user.name} />
+                        <AvatarFallback className="text-[8px]">{user.name[0]}</AvatarFallback>
+                      </Avatar>
+                    ) : null;
+                  })}
+                </div>
+              )}
+            </Button>
+          </div>
+        )}
 
         {/* Stake, Expiration & Participants */}
         <div className="grid grid-cols-3 pt-2">
@@ -318,6 +357,7 @@ export default function Bet({
         <BetParticipants 
           isExpanded={isExpanded}
           betTrades={betTrades}
+          roomId={roomId}
         />
       </CardContent>
 
@@ -343,6 +383,16 @@ export default function Bet({
           } : null;
         })()}
         maxAvailable={getOpponentAndMax(betChoice).maxAvailable}
+        betId={id}
+      />
+
+      {/* Resolve Dialog */}
+      <ResolveDialog
+        isOpen={isResolveDialogOpen}
+        onOpenChange={setIsResolveDialogOpen}
+        title={title}
+        imageUrl={imageUrl}
+        betId={id}
       />
     </Card>
   );

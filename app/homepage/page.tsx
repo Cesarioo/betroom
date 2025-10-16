@@ -410,6 +410,7 @@ export default function Homepage() {
                       <Bet
                         key={bet.id}
                         id={bet.id}
+                        roomId={bet.roomId}
                         title={bet.title}
                         imageUrl={bet.imageUrl}
                         amountAtStake={bet.amountAtStake}

@@ -1,14 +1,16 @@
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Crown } from 'lucide-react';
 import dbData from '@/backend/db.json';
 
 interface BetParticipantsProps {
   isExpanded: boolean;
   betTrades: typeof dbData.trades;
+  roomId: number;
 }
 
-export default function BetParticipants({ isExpanded, betTrades }: BetParticipantsProps) {
+export default function BetParticipants({ isExpanded, betTrades, roomId }: BetParticipantsProps) {
   // Group trades by position
   const yesTrades = betTrades.filter((t) => t.position === 'yes');
   const noTrades = betTrades.filter((t) => t.position === 'no');
@@ -30,6 +32,13 @@ export default function BetParticipants({ isExpanded, betTrades }: BetParticipan
   };
 
   if (!isExpanded) return null;
+
+  // Get room admins
+  const roomIdString = `room_${roomId}`;
+  const roomAdmins = dbData.users.filter((user) => {
+    const userRoom = user.rooms.find((r) => r.id === roomIdString);
+    return userRoom?.isAdmin === true;
+  });
 
   // Group all trades by makerTradeId
   const makerGroups = new Map<string, { maker: typeof betTrades[0], takers: typeof betTrades }>();
@@ -218,6 +227,26 @@ export default function BetParticipants({ isExpanded, betTrades }: BetParticipan
           );
         })}
       </div>
+
+      {/* Room Admins */}
+      {roomAdmins.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-border flex justify-end">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Room Admins:</span>
+            <div className="flex -space-x-2">
+              {roomAdmins.map((admin, index) => (
+                <div key={admin.id} className="relative" style={{ zIndex: roomAdmins.length - index }}>
+                  <Avatar className="w-8 h-8 ring-2 ring-background">
+                    <AvatarImage src={admin.profileImage} alt={admin.name} />
+                    <AvatarFallback className="text-xs">{admin.name[0]}</AvatarFallback>
+                  </Avatar>
+                  <Crown className="absolute -top-1 -right-1 h-4 w-4 text-red-500 fill-red-500" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -10,7 +10,13 @@
         {
           "id": "room_0",
           "name": "My Room",
-          "isPersonal": true
+          "isPersonal": true,
+          "isAdmin": true
+        },
+        {
+          "id": "room_1",
+          "name": "Work Room",
+          "isAdmin": true
         }
       ]
     },
@@ -23,7 +29,8 @@
       "rooms": [
         {
           "id": "room_1",
-          "name": "Work Room"
+          "name": "Work Room",
+          "isAdmin": true
         }
       ]
     },
@@ -36,7 +43,8 @@
       "rooms": [
         {
           "id": "room_1",
-          "name": "Work Room"
+          "name": "Work Room",
+          "isAdmin": false
         }
       ]
     },
@@ -49,7 +57,8 @@
       "rooms": [
         {
           "id": "room_1",
-          "name": "Work Room"
+          "name": "Work Room",
+          "isAdmin": false
         }
       ]
     },
@@ -62,7 +71,8 @@
       "rooms": [
         {
           "id": "room_2",
-          "name": "Friends Room"
+          "name": "Friends Room",
+          "isAdmin": true
         }
       ]
     },
@@ -75,7 +85,8 @@
       "rooms": [
         {
           "id": "room_2",
-          "name": "Friends Room"
+          "name": "Friends Room",
+          "isAdmin": false
         }
       ]
     },
@@ -88,7 +99,8 @@
       "rooms": [
         {
           "id": "room_2",
-          "name": "Friends Room"
+          "name": "Friends Room",
+          "isAdmin": false
         }
       ]
     }
@@ -99,9 +111,9 @@
       "roomId": "room_0",
       "title": "Will I finish my personal project by Friday?",
       "imageUrl": "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400&q=80",
-      "expirationDate": "2025-10-15T17:00:00.000Z",
+      "expirationDate": "2025-10-10T17:00:00.000Z",
       "createdBy": "user_1",
-      "createdAt": "2025-10-10T10:00:00.000Z"
+      "createdAt": "2025-10-05T10:00:00.000Z"
     },
     {
       "id": "bet_2",
@@ -117,9 +129,9 @@
       "roomId": "room_1",
       "title": "Will it rain tomorrow in SF?",
       "imageUrl": "https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=400&q=80",
-      "expirationDate": "2025-10-12T18:00:00.000Z",
+      "expirationDate": "2025-10-18T00:00:00.000Z",
       "createdBy": "user_2",
-      "createdAt": "2025-10-11T09:00:00.000Z"
+      "createdAt": "2025-10-05T09:00:00.000Z"
     },
     {
       "id": "bet_4",
@@ -162,7 +174,7 @@
       "roomId": "room_2",
       "title": "Lakers will win their next game",
       "imageUrl": "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=400&q=80",
-      "expirationDate": "2025-10-14T20:00:00.000Z",
+      "expirationDate": "2025-10-10T20:00:00.000Z",
       "createdBy": "user_5",
       "createdAt": "2025-10-11T15:00:00.000Z"
     },
@@ -209,7 +221,7 @@
       "betId": "bet_3",
       "userId": "user_6",
       "position": "yes",
-      "percentage": 70,
+      "percentage": 40,
       "amount": 100,
       "type": "maker",
       "makerTradeId": null,
@@ -221,7 +233,7 @@
       "betId": "bet_3",
       "userId": "user_2",
       "position": "no",
-      "percentage": 30,
+      "percentage": 60,
       "amount": 18,
       "type": "taker",
       "makerTradeId": "trade_1",
@@ -233,7 +245,7 @@
       "betId": "bet_3",
       "userId": "user_3",
       "position": "no",
-      "percentage": 30,
+      "percentage": 60,
       "amount": 12,
       "type": "taker",
       "makerTradeId": "trade_1",
@@ -245,7 +257,7 @@
       "betId": "bet_3",
       "userId": "user_5",
       "position": "no",
-      "percentage": 25,
+      "percentage": 80,
       "amount": 150,
       "type": "maker",
       "makerTradeId": null,
@@ -257,7 +269,7 @@
       "betId": "bet_3",
       "userId": "user_6",
       "position": "yes",
-      "percentage": 75,
+      "percentage": 20,
       "amount": 18,
       "type": "taker",
       "makerTradeId": "trade_4",
@@ -269,7 +281,7 @@
       "betId": "bet_3",
       "userId": "user_7",
       "position": "yes",
-      "percentage": 75,
+      "percentage": 20,
       "amount": 12,
       "type": "taker",
       "makerTradeId": "trade_4",
