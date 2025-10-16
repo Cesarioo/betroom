@@ -86,10 +86,11 @@ export default function Homepage() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   // Swipe state
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
+  const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
+  const [swipeDirection, setSwipeDirection] = useState<'horizontal' | 'vertical' | null>(null);
   const mainContentRef = useRef<HTMLDivElement>(null);
 
   // Get current user data
@@ -127,8 +128,8 @@ export default function Homepage() {
   };
 
   // Swipe handlers
-  const minSwipeDistance = 100; // Minimum swipe distance in pixels
-  const minHorizontalSwipeThreshold = 10; // Pixels to determine horizontal intent
+  const minSwipeDistance = 100; // Minimum swipe distance for both animation and room change
+  const minDirectionThreshold = 10; // Pixels to determine swipe direction
 
   // Check if any dialog is open
   const isAnyDialogOpen = () => {
@@ -140,8 +141,9 @@ export default function Homepage() {
     if (isAnyDialogOpen()) return;
     
     setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
-    setIsSwiping(true);
+    setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
+    setSwipeDirection(null);
+    setIsSwiping(false);
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
@@ -150,20 +152,36 @@ export default function Homepage() {
     
     if (touchStart === null) return;
     
-    const currentTouch = e.targetTouches[0].clientX;
-    const diff = currentTouch - touchStart;
+    const currentX = e.targetTouches[0].clientX;
+    const currentY = e.targetTouches[0].clientY;
+    const diffX = currentX - touchStart.x;
+    const diffY = currentY - touchStart.y;
     
-    // Determine if this is a horizontal swipe
-    const isHorizontalSwipe = Math.abs(diff) > minHorizontalSwipeThreshold;
-    
-    // If horizontal swipe detected, prevent vertical scrolling
-    if (isHorizontalSwipe) {
-      e.preventDefault();
+    // Determine swipe direction once we have enough movement
+    if (swipeDirection === null && (Math.abs(diffX) > minDirectionThreshold || Math.abs(diffY) > minDirectionThreshold)) {
+      // Set direction based on which axis has more movement
+      if (Math.abs(diffX) > Math.abs(diffY)) {
+        setSwipeDirection('horizontal');
+        setIsSwiping(true);
+      } else {
+        setSwipeDirection('vertical');
+      }
     }
     
-    // No resistance - direct 1:1 movement for better peek effect
-    setSwipeOffset(diff);
-    setTouchEnd(currentTouch);
+    // Only apply horizontal swipe logic if we've committed to horizontal direction
+    if (swipeDirection === 'horizontal') {
+      // Lock vertical scrolling
+      e.preventDefault();
+      
+      // Only start animation after 100px threshold
+      const adjustedDiff = Math.abs(diffX) > minSwipeDistance 
+        ? (diffX > 0 ? diffX - minSwipeDistance : diffX + minSwipeDistance)
+        : 0;
+      
+      setSwipeOffset(adjustedDiff);
+    }
+    
+    setTouchEnd({ x: currentX, y: currentY });
   };
 
   const onTouchEnd = () => {
@@ -173,35 +191,41 @@ export default function Homepage() {
       setSwipeOffset(0);
       setTouchStart(null);
       setTouchEnd(null);
+      setSwipeDirection(null);
       return;
     }
     
     if (!touchStart || !touchEnd) {
       setIsSwiping(false);
       setSwipeOffset(0);
+      setSwipeDirection(null);
       return;
     }
 
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
+    // Only process if this was a horizontal swipe
+    if (swipeDirection === 'horizontal') {
+      const distance = touchStart.x - touchEnd.x;
+      const isLeftSwipe = distance > minSwipeDistance;
+      const isRightSwipe = distance < -minSwipeDistance;
 
-    // Get current room index
-    const currentIndex = rooms.findIndex(r => r.id === selectedRoomId);
+      // Get current room index
+      const currentIndex = rooms.findIndex(r => r.id === selectedRoomId);
 
-    if (isLeftSwipe && currentIndex < rooms.length - 1) {
-      // Swipe left: go to next room
-      handleRoomSelect(rooms[currentIndex + 1].id);
-    } else if (isRightSwipe && currentIndex > 0) {
-      // Swipe right: go to previous room
-      handleRoomSelect(rooms[currentIndex - 1].id);
+      if (isLeftSwipe && currentIndex < rooms.length - 1) {
+        // Swipe left: go to next room
+        handleRoomSelect(rooms[currentIndex + 1].id);
+      } else if (isRightSwipe && currentIndex > 0) {
+        // Swipe right: go to previous room
+        handleRoomSelect(rooms[currentIndex - 1].id);
+      }
     }
 
-    // Reset swipe state
+    // Reset swipe state completely after swipe
     setTouchStart(null);
     setTouchEnd(null);
     setSwipeOffset(0);
     setIsSwiping(false);
+    setSwipeDirection(null);
   };
 
   // Calculate the transform offset based on selected room
