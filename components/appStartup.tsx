@@ -87,8 +87,8 @@ export default function AppStartup({ onComplete }: AppStartupProps) {
           <Image
             src="/icon.png"
             alt="Betroom Logo"
-            width={120}
-            height={120}
+            width={500}
+            height={500}
             className="rounded-2xl"
           />
         </div>
