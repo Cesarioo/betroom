@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import Image from 'next/image';
 
 interface AppStartupProps {
   onComplete: () => void;
@@ -84,11 +83,11 @@ export default function AppStartup({ onComplete }: AppStartupProps) {
         }`}
       >
         <div className="animate-pulse">
-          <Image
+          <img
             src="/icon.png"
             alt="Betroom Logo"
-            width={500}
-            height={500}
+            width={120}
+            height={120}
             className="rounded-2xl"
           />
         </div>
