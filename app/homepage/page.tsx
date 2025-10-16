@@ -8,6 +8,7 @@ import { useState, useRef } from 'react';
 import AddRoom from '@/components/addRoom';
 import CreateBet from '@/components/createBet';
 import Bet from '@/components/bet/betCard';
+import BetAnimation from '@/components/bet/betAnimation';
 import dbData from '@/backend/db.json';
 
 // Process data from database
@@ -85,6 +86,16 @@ export default function Homepage() {
   const roomRefs = useRef<{ [key: number]: HTMLButtonElement | null }>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
+  // Animation state
+  const [showBetAnimation, setShowBetAnimation] = useState(false);
+  const [animationData, setAnimationData] = useState<{
+    choice: 'yes' | 'no';
+    percentage: number;
+    amount: string;
+    userImage: string;
+    userName: string;
+  } | null>(null);
+  
   // Swipe state
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null);
@@ -103,6 +114,17 @@ export default function Homepage() {
 
   const handleLogin = () => {
     setIsLoggedIn(true);
+  };
+
+  const triggerBetAnimation = (data: {
+    choice: 'yes' | 'no';
+    percentage: number;
+    amount: string;
+    userImage: string;
+    userName: string;
+  }) => {
+    setAnimationData(data);
+    setShowBetAnimation(true);
   };
 
   const handleRoomSelect = (roomId: number) => {
@@ -417,6 +439,7 @@ export default function Homepage() {
                         participants={bet.participants}
                         percentage={bet.percentage}
                         expirationDate={bet.expirationDate}
+                        onTriggerAnimation={triggerBetAnimation}
                       />
                     ))
                   ) : (
@@ -436,7 +459,24 @@ export default function Homepage() {
       <AddRoom open={isAddRoomOpen} onOpenChange={setIsAddRoomOpen} />
       
       {/* Create Bet Dialog */}
-      <CreateBet open={isCreateBetOpen} onOpenChange={setIsCreateBetOpen} />
+      <CreateBet 
+        open={isCreateBetOpen} 
+        onOpenChange={setIsCreateBetOpen}
+        onTriggerAnimation={triggerBetAnimation}
+      />
+
+      {/* Bet Proposal Animation */}
+      {animationData && (
+        <BetAnimation
+          isOpen={showBetAnimation}
+          onOpenChange={setShowBetAnimation}
+          choice={animationData.choice}
+          percentage={animationData.percentage}
+          amount={animationData.amount}
+          userImage={animationData.userImage}
+          userName={animationData.userName}
+        />
+      )}
     </div>
   );
 }

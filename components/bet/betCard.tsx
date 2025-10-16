@@ -25,6 +25,13 @@ interface BetProps {
   participants: Participant[];
   percentage: number;
   expirationDate: string;
+  onTriggerAnimation: (data: {
+    choice: 'yes' | 'no';
+    percentage: number;
+    amount: string;
+    userImage: string;
+    userName: string;
+  }) => void;
 }
 
 export default function Bet({
@@ -36,6 +43,7 @@ export default function Bet({
   participants,
   percentage,
   expirationDate,
+  onTriggerAnimation,
 }: BetProps) {
   const [selectedAnswer, setSelectedAnswer] = useState<'yes' | 'no' | null>(null);
   const [isBetDialogOpen, setIsBetDialogOpen] = useState(false);
@@ -115,13 +123,29 @@ export default function Bet({
   };
 
   const handlePlaceBet = () => {
+    const finalPercentage = betChoice === 'yes' ? displayPercentage : (100 - displayPercentage);
+    const finalAmount = betAmount;
+    
     console.log('Placing bet:', {
       choice: betChoice,
-      amount: betAmount,
-      percentage: betChoice === 'yes' ? displayPercentage : (100 - displayPercentage)
+      amount: finalAmount,
+      percentage: finalPercentage
     });
-    setBetAmount('');
+    
+    // Close dialog and reset
     setIsBetDialogOpen(false);
+    setBetAmount('');
+    
+    // Trigger animation after brief delay
+    setTimeout(() => {
+      onTriggerAnimation({
+        choice: betChoice,
+        percentage: finalPercentage,
+        amount: finalAmount,
+        userImage: currentUser?.profileImage || '',
+        userName: currentUser?.name || 'You',
+      });
+    }, 100);
   };
 
   // Calculate color based on percentage (red to green gradient)
@@ -384,6 +408,7 @@ export default function Bet({
         })()}
         maxAvailable={getOpponentAndMax(betChoice).maxAvailable}
         betId={id}
+        onTriggerAnimation={onTriggerAnimation}
       />
 
       {/* Resolve Dialog */}

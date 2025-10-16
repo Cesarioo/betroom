@@ -257,7 +257,7 @@
       "betId": "bet_3",
       "userId": "user_5",
       "position": "no",
-      "percentage": 80,
+      "percentage": 60,
       "amount": 150,
       "type": "maker",
       "makerTradeId": null,

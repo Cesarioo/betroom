@@ -34,6 +34,13 @@ interface BetDialogProps {
   } | null;
   maxAvailable: number;
   betId: number;
+  onTriggerAnimation: (data: {
+    choice: 'yes' | 'no';
+    percentage: number;
+    amount: string;
+    userImage: string;
+    userName: string;
+  }) => void;
 }
 
 export default function BetDialog({
@@ -49,6 +56,7 @@ export default function BetDialog({
   opponentUser,
   maxAvailable,
   betId,
+  onTriggerAnimation,
 }: BetDialogProps) {
   const [mode, setMode] = useState<'take' | 'propose'>('take');
   const [proposePercentage, setProposePercentage] = useState(50);
@@ -83,10 +91,10 @@ export default function BetDialog({
   // If proposing NO: NO on left, YES on right (inverted)
   const isInverted = proposeChoice === 'no';
   
+  // Calculate slider range based on maker positions
   const actualMin = lowestYesMaker ? lowestYesMaker.percentage : 0;
   const actualMax = highestNoMaker ? highestNoMaker.percentage : 100;
   
-  // Slider always needs min < max to function
   const sliderMin = actualMin;
   const sliderMax = actualMax;
   
@@ -97,10 +105,14 @@ export default function BetDialog({
       setProposeAmount('');
       setProposeChoice('yes');
     } else {
-      // Initialize to the middle of the slider range when opening
-      setProposePercentage(Math.floor((sliderMin + sliderMax) / 2));
+      // Initialize to the middle of the valid range when opening
+      const actualMin = lowestYesMaker ? lowestYesMaker.percentage : 0;
+      const actualMax = highestNoMaker ? highestNoMaker.percentage : 100;
+      const middle = Math.floor((actualMin + actualMax) / 2);
+      // Round to nearest 10
+      setProposePercentage(Math.round(middle / 10) * 10);
     }
-  }, [isOpen, sliderMin, sliderMax]);
+  }, [isOpen, lowestYesMaker, highestNoMaker]);
   
   // Calculate max user can bet based on opponent's available liquidity
   const calculateMaxUserBet = () => {
@@ -219,14 +231,12 @@ export default function BetDialog({
                   
                   {/* Flex container with avatars and slider */}
                   <div className="flex items-center gap-2">
-                    {/* Left avatar */}
+                    {/* Left avatar - always YES maker */}
                     <div className="-mr-4 z-10">
-                      {(isInverted ? highestNoMaker : lowestYesMaker) && (() => {
-                        const maker = isInverted ? highestNoMaker : lowestYesMaker;
-                        const user = maker ? dbData.users.find((u) => u.id === maker.userId) : null;
-                        const isYes = maker?.position === 'yes';
+                      {lowestYesMaker && (() => {
+                        const user = dbData.users.find((u) => u.id === lowestYesMaker.userId);
                         return user ? (
-                          <Avatar className={`w-8 h-8 border-2 ${isYes ? 'border-green-500' : 'border-red-500'}`}>
+                          <Avatar className="w-8 h-8 border-2 border-green-500">
                             <AvatarImage src={user.profileImage} alt={user.name} />
                             <AvatarFallback className="text-xs">{user.name[0]}</AvatarFallback>
                           </Avatar>
@@ -234,26 +244,40 @@ export default function BetDialog({
                       })()}
                     </div>
                     
-                    {/* Slider */}
-                    <div className="flex-1">
+                    {/* Slider with current user avatar */}
+                    <div className="flex-1 relative py-2">
+                      {/* Current user avatar positioned at slider thumb */}
+                      <div 
+                        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 pointer-events-none transition-all"
+                        style={{ 
+                          left: `${isInverted 
+                            ? (100 - ((proposePercentage - sliderMin) / (sliderMax - sliderMin)) * 100)
+                            : ((proposePercentage - sliderMin) / (sliderMax - sliderMin)) * 100}%` 
+                        }}
+                      >
+                        <Avatar className={`w-8 h-8 border-2 ${proposeChoice === 'yes' ? 'border-green-500' : 'border-red-500'}`}>
+                          <AvatarImage src={currentUser.profileImage} alt={currentUser.name} />
+                          <AvatarFallback className="text-xs">{currentUser.name[0]}</AvatarFallback>
+                        </Avatar>
+                      </div>
+                      
                       <Slider
-                        value={[isInverted ? (sliderMin + sliderMax - proposePercentage) : proposePercentage]}
-                        onValueChange={(values) => setProposePercentage(isInverted ? (sliderMin + sliderMax - values[0]) : values[0])}
+                        value={[proposePercentage]}
+                        onValueChange={(values) => setProposePercentage(values[0])}
                         max={sliderMax}
                         min={sliderMin}
-                        step={1}
-                        className="w-full"
+                        step={10}
+                        className="w-full [&_[role=slider]]:opacity-0"
+                        inverted={isInverted}
                       />
                     </div>
                     
-                    {/* Right avatar */}
+                    {/* Right avatar - always NO maker */}
                     <div className="-ml-4 z-10">
-                      {(isInverted ? lowestYesMaker : highestNoMaker) && (() => {
-                        const maker = isInverted ? lowestYesMaker : highestNoMaker;
-                        const user = maker ? dbData.users.find((u) => u.id === maker.userId) : null;
-                        const isYes = maker?.position === 'yes';
+                      {highestNoMaker && (() => {
+                        const user = dbData.users.find((u) => u.id === highestNoMaker.userId);
                         return user ? (
-                          <Avatar className={`w-8 h-8 border-2 ${isYes ? 'border-green-500' : 'border-red-500'}`}>
+                          <Avatar className="w-8 h-8 border-2 border-red-500">
                             <AvatarImage src={user.profileImage} alt={user.name} />
                             <AvatarFallback className="text-xs">{user.name[0]}</AvatarFallback>
                           </Avatar>
@@ -312,9 +336,22 @@ export default function BetDialog({
                           percentage: proposePercentage,
                           amount: proposeAmount,
                         });
+                        // Close dialog and trigger animation
+                        onOpenChange(false);
+                        setTimeout(() => {
+                          onTriggerAnimation({
+                            choice: proposeChoice,
+                            percentage: proposePercentage,
+                            amount: proposeAmount,
+                            userImage: currentUser.profileImage,
+                            userName: currentUser.name,
+                          });
+                        }, 100);
+                        // Reset state
                         setProposeAmount('');
                         setMode('take');
-                        onOpenChange(false);
+                        setProposePercentage(50);
+                        setProposeChoice('yes');
                       }}
                       disabled={!proposeAmount || parseFloat(proposeAmount) <= 0}
                       className={`${proposeChoice === 'yes' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}

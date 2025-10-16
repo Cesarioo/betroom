@@ -20,9 +20,16 @@ import dbData from '@/backend/db.json';
 interface CreateBetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onTriggerAnimation: (data: {
+    choice: 'yes' | 'no';
+    percentage: number;
+    amount: string;
+    userImage: string;
+    userName: string;
+  }) => void;
 }
 
-export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
+export default function CreateBet({ open, onOpenChange, onTriggerAnimation }: CreateBetProps) {
   const [betName, setBetName] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [expirationDate, setExpirationDate] = useState('');
@@ -247,10 +254,26 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
       crownedParticipants,
       allSelectedMembers,
     });
+    
+    // Close dialog first
+    onOpenChange(false);
+    
     // Clean up blob URL if it exists
     if (imageUrl.startsWith('blob:')) {
       URL.revokeObjectURL(imageUrl);
     }
+    
+    // Trigger animation after brief delay
+    setTimeout(() => {
+      onTriggerAnimation({
+        choice: initialChoice,
+        percentage: initialPercentage,
+        amount: amount,
+        userImage: dbData.users[0].profileImage,
+        userName: 'You',
+      });
+    }, 100);
+    
     // Reset form
     setBetName('');
     setImageUrl('');
@@ -264,7 +287,6 @@ export default function CreateBet({ open, onOpenChange }: CreateBetProps) {
     setSearchQuery('');
     setShowRooms(false);
     setShowIndividualUsers(false);
-    onOpenChange(false);
   };
 
   const isComplete = betName && imageUrl && expirationDate && amount && initialPercentage >= 0 && initialPercentage <= 100 && allSelectedMembers.length > 0;
