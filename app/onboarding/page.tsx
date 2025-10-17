@@ -416,7 +416,7 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-6 py-2 relative overflow-hidden">
+    <div className="h-screen bg-background flex items-center justify-center px-6 py-2 relative overflow-hidden">
       <div className="w-full max-w-2xl">
         {/* Main Content */}
         <div className="text-center space-y-6">
