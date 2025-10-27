@@ -17,7 +17,7 @@ interface ResolveDialogProps {
   onOpenChange: (open: boolean) => void;
   title: string;
   imageUrl: string;
-  betId: number;
+  betId: string;
 }
 
 export default function ResolveDialog({

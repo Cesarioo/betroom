@@ -14,6 +14,9 @@ import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import dbData from '@/backend/db.json';
+import { useTakeBet, useCreateMakerTrade } from '@/lib/database/bet';
+import { useSupabase } from '@/lib/hooks/supabase';
+import { useUserMoney } from '@/lib/database/money';
 
 interface BetDialogProps {
   isOpen: boolean;
@@ -33,7 +36,7 @@ interface BetDialogProps {
     profileImage: string;
   } | null;
   maxAvailable: number;
-  betId: number;
+  betId: string;
   onTriggerAnimation: (data: {
     choice: 'yes' | 'no';
     percentage: number;
@@ -41,6 +44,9 @@ interface BetDialogProps {
     userImage: string;
     userName: string;
   }) => void;
+  initialMode?: 'take' | 'propose';
+  yesButtonOrders?: any[];
+  noButtonOrders?: any[];
 }
 
 export default function BetDialog({
@@ -57,11 +63,21 @@ export default function BetDialog({
   maxAvailable,
   betId,
   onTriggerAnimation,
+  initialMode = 'take',
+  yesButtonOrders = [],
+  noButtonOrders = [],
 }: BetDialogProps) {
-  const [mode, setMode] = useState<'take' | 'propose'>('take');
+  const [mode, setMode] = useState<'take' | 'propose'>(initialMode);
   const [proposePercentage, setProposePercentage] = useState(50);
   const [proposeAmount, setProposeAmount] = useState('');
   const [proposeChoice, setProposeChoice] = useState<'yes' | 'no'>('yes');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [remainingMakerLiquidity, setRemainingMakerLiquidity] = useState(0);
+  
+  const { takeBet, isTaking } = useTakeBet();
+  const { createMakerTrade, isCreating: isCreatingMaker } = useCreateMakerTrade();
+  const { supabase } = useSupabase();
+  const { currentBalance } = useUserMoney();
   
   const amount = parseFloat(betAmount) || 0;
   
@@ -105,6 +121,8 @@ export default function BetDialog({
       setProposeAmount('');
       setProposeChoice('yes');
     } else {
+      // Set mode to initialMode when dialog opens
+      setMode(initialMode);
       // Initialize to the middle of the valid range when opening
       const actualMin = lowestYesMaker ? lowestYesMaker.percentage : 0;
       const actualMax = highestNoMaker ? highestNoMaker.percentage : 100;
@@ -112,38 +130,28 @@ export default function BetDialog({
       // Round to nearest 10
       setProposePercentage(Math.round(middle / 10) * 10);
     }
-  }, [isOpen, lowestYesMaker, highestNoMaker]);
+  }, [isOpen, lowestYesMaker, highestNoMaker, initialMode]);
   
-  // Calculate max user can bet based on opponent's available liquidity
+  // Calculate max user can bet based on remaining maker liquidity
+  // remainingMakerLiquidity is already converted to taker's side based on price
+  // Also cap it by the user's available cash
   const calculateMaxUserBet = () => {
-    if (maxAvailable <= 0) return 0;
-    
-    // maxAvailable is what the opponent has available
-    // We need to calculate how much the user can bet to use up that liquidity
-    if (betChoice === 'yes') {
-      // User bets YES at percentage%, opponent needs (userAmount * (100-percentage)) / percentage
-      // Solve: maxAvailable = (userAmount * (100-percentage)) / percentage
-      // userAmount = (maxAvailable * percentage) / (100-percentage)
-      return (maxAvailable * percentage) / (100 - percentage);
-    } else {
-      // User bets NO at (100-percentage)%, opponent needs (userAmount * percentage) / (100-percentage)
-      // Solve: maxAvailable = (userAmount * percentage) / (100-percentage)
-      // userAmount = (maxAvailable * (100-percentage)) / percentage
-      return (maxAvailable * (100 - percentage)) / percentage;
-    }
+    // Take the minimum of available liquidity and user's cash
+    return Math.min(remainingMakerLiquidity, currentBalance);
   };
   
-  const maxUserBet = Math.floor(calculateMaxUserBet());
+  const maxUserBet = calculateMaxUserBet();
+  const maxUserBetWhole = Math.floor(maxUserBet);
   
-  // Initialize slider at 10% of max user bet when dialog opens
+  // Initialize slider at 10% of max user bet when dialog opens or remaining liquidity changes
   useEffect(() => {
-    if (isOpen && maxUserBet > 0) {
+    if (isOpen && maxUserBetWhole > 0 && remainingMakerLiquidity > 0) {
       const initialAmount = Math.floor(maxUserBet * 0.1);
       if (initialAmount > 0) {
         setBetAmount(initialAmount.toString());
       }
     }
-  }, [isOpen, maxUserBet, setBetAmount]);
+  }, [isOpen, maxUserBet, remainingMakerLiquidity, setBetAmount]);
 
   // Calculate opponent's amount based on odds (this will always be <= maxAvailable)
   const calculateOpponentAmount = () => {
@@ -160,6 +168,154 @@ export default function BetDialog({
 
   const opponentAmount = calculateOpponentAmount();
 
+  // Fetch remaining maker liquidity
+  useEffect(() => {
+    const fetchRemainingLiquidity = async () => {
+      try {
+        const orders = betChoice === 'yes' ? yesButtonOrders : noButtonOrders;
+        if (orders.length === 0) {
+          setRemainingMakerLiquidity(0);
+          return;
+        }
+
+        const selectedMakerTrade = orders[0];
+        const makerPrice = selectedMakerTrade.price;
+        
+        // Get all existing taker trades for this maker trade
+        const { data: existingTakers } = await supabase
+          .from('trades')
+          .select('amount')
+          .eq('maker_trade_id', selectedMakerTrade.id);
+
+        // Calculate total amount already taken by takers
+        const totalTaken = existingTakers?.reduce((sum: number, t: any) => sum + t.amount, 0) || 0;
+        
+        // Calculate how much of the maker's allocation is still available
+        // Then convert that to how much the taker can bet at their side's price
+        const remainingMakerAllocation = selectedMakerTrade.amount - totalTaken;
+        
+        // Convert remaining maker allocation to taker amount based on price
+        // The maker's price determines how much the taker can bet
+        // Example: If maker has 10 at price 80 (maker betting at 80% odds)
+        // - Taker at 20% can bet: (makerAmount * (100 - makerPrice)) / makerPrice
+        // - Taker amount = (10 * 20) / 80 = 2.5
+        // Both YES and NO takers use the same formula when maker is on opposite side
+        let takerMaxAmount = 0;
+        if (makerPrice > 0 && makerPrice < 100) {
+          takerMaxAmount = (remainingMakerAllocation * (100 - makerPrice)) / makerPrice;
+        }
+        
+        setRemainingMakerLiquidity(takerMaxAmount > 0 ? takerMaxAmount : 0);
+      } catch (error) {
+        console.error('Error fetching remaining liquidity:', error);
+        setRemainingMakerLiquidity(0);
+      }
+    };
+
+    if (isOpen && (yesButtonOrders.length > 0 || noButtonOrders.length > 0)) {
+      fetchRemainingLiquidity();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, betChoice, yesButtonOrders.length, noButtonOrders.length]);
+
+
+
+  const handleTakeBet = async () => {
+    try {
+      setErrorMessage(null);
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Get the first available maker trade for the chosen side
+      const orders = betChoice === 'yes' ? yesButtonOrders : noButtonOrders;
+      if (orders.length === 0) {
+        throw new Error('No makers available for this side');
+      }
+
+      const selectedMakerTrade = orders[0];
+      const makerPrice = betChoice === 'yes' ? percentage : (100 - percentage);
+
+      await takeBet({
+        bet_id: betId,
+        user_id: user.id,
+        side: betChoice,
+        price: makerPrice,
+        amount: amount,
+        maker_trade_id: selectedMakerTrade.id,
+        currentBalance: currentBalance,
+      });
+
+      // Close dialog and trigger animation
+      onOpenChange(false);
+      setTimeout(() => {
+        onTriggerAnimation({
+          choice: betChoice,
+          percentage: betChoice === 'yes' ? percentage : (100 - percentage),
+          amount: betAmount,
+          userImage: currentUser.profileImage,
+          userName: currentUser.name,
+        });
+      }, 100);
+      
+      // Reset state
+      setBetAmount('');
+      setErrorMessage(null);
+    } catch (err) {
+      console.error('Error taking bet:', err);
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to take bet');
+    }
+  };
+
+  const handleProposeBet = async () => {
+    try {
+      setErrorMessage(null);
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      const proposeAmountValue = parseFloat(proposeAmount);
+      if (isNaN(proposeAmountValue) || proposeAmountValue <= 0) {
+        throw new Error('Please enter a valid amount');
+      }
+
+      await createMakerTrade({
+        bet_id: betId,
+        user_id: user.id,
+        side: proposeChoice,
+        price: proposePercentage,
+        amount: proposeAmountValue,
+        currentBalance: currentBalance,
+      });
+
+      // Close dialog and trigger animation
+      onOpenChange(false);
+      setTimeout(() => {
+        onTriggerAnimation({
+          choice: proposeChoice,
+          percentage: proposePercentage,
+          amount: proposeAmount,
+          userImage: currentUser.profileImage,
+          userName: currentUser.name,
+        });
+      }, 100);
+      
+      // Reset state
+      setProposeAmount('');
+      setProposeChoice('yes');
+      setProposePercentage(50);
+      setMode('take');
+      setErrorMessage(null);
+    } catch (err) {
+      console.error('Error proposing bet:', err);
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to propose bet');
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="w-[calc(100vw-2rem)] max-w-[450px]">
@@ -171,6 +327,12 @@ export default function BetDialog({
             {title}
           </DialogDescription>
         </DialogHeader>
+
+        {errorMessage && (
+          <div className="px-6 py-3 bg-destructive/10 border border-destructive/20 rounded-md">
+            <p className="text-sm text-destructive text-center">{errorMessage}</p>
+          </div>
+        )}
 
         <div className="space-y-6 py-4">
           {mode === 'take' ? (
@@ -214,7 +376,7 @@ export default function BetDialog({
                 <Slider
                   value={[amount]}
                   onValueChange={(values) => setBetAmount(values[0].toString())}
-                  max={maxUserBet}
+                  max={maxUserBetWhole}
                   min={0}
                   step={1}
                   className="w-full"
@@ -330,33 +492,11 @@ export default function BetDialog({
                       />
                     </div>
                     <Button
-                      onClick={() => {
-                        console.log('Proposing bet:', {
-                          choice: proposeChoice,
-                          percentage: proposePercentage,
-                          amount: proposeAmount,
-                        });
-                        // Close dialog and trigger animation
-                        onOpenChange(false);
-                        setTimeout(() => {
-                          onTriggerAnimation({
-                            choice: proposeChoice,
-                            percentage: proposePercentage,
-                            amount: proposeAmount,
-                            userImage: currentUser.profileImage,
-                            userName: currentUser.name,
-                          });
-                        }, 100);
-                        // Reset state
-                        setProposeAmount('');
-                        setMode('take');
-                        setProposePercentage(50);
-                        setProposeChoice('yes');
-                      }}
-                      disabled={!proposeAmount || parseFloat(proposeAmount) <= 0}
+                      onClick={handleProposeBet}
+                      disabled={!proposeAmount || parseFloat(proposeAmount) <= 0 || isCreatingMaker}
                       className={`${proposeChoice === 'yes' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
                     >
-                      Propose
+                      {isCreatingMaker ? 'Creating...' : 'Propose'}
                     </Button>
                   </div>
                 </div>
@@ -378,11 +518,11 @@ export default function BetDialog({
               Better quote
             </Button>
             <Button
-              onClick={onPlaceBet}
-              disabled={!betAmount || amount <= 0}
+              onClick={handleTakeBet}
+              disabled={!betAmount || amount <= 0 || isTaking}
               className={`flex-1 ${betChoice === 'yes' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
             >
-              Bet against {opponentUser?.name || 'Opponent'}
+              {isTaking ? 'Processing...' : `Bet against ${opponentUser?.name || 'Opponent'}`}
             </Button>
           </DialogFooter>
         )}

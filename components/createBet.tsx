@@ -16,7 +16,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Upload, ChevronDown, ChevronRight, Check, Crown } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { useSupabase } from '@/lib/hooks/supabase';
-import dbData from '@/backend/db.json';
+import { useCreateBet } from '@/lib/database/bet';
+import { useUserMoney } from '@/lib/database/money';
 
 interface CreateBetProps {
   open: boolean;
@@ -66,7 +67,15 @@ export default function CreateBet({ open, onOpenChange, onTriggerAnimation, onBe
     }>;
   }>>([]);
   const [currentUser, setCurrentUser] = useState<{ id: string; pseudonym: string; avatar_url: string | null } | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
+
+  // Use the create bet hook
+  const { createBet, isCreating, error: betError } = useCreateBet();
+  
+  // Get user's available cash
+  const { currentBalance } = useUserMoney();
+  
+  // Local error state for display
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Fetch data from Supabase
   useEffect(() => {
@@ -157,10 +166,10 @@ export default function CreateBet({ open, onOpenChange, onTriggerAnimation, onBe
     }
   }, [isParticipantsOpen]);
 
-  // Reset loading state when dialog closes
+  // Clear error when dialog opens
   useEffect(() => {
-    if (!open) {
-      setIsCreating(false);
+    if (open) {
+      setErrorMessage(null);
     }
   }, [open]);
 
@@ -333,86 +342,23 @@ export default function CreateBet({ open, onOpenChange, onTriggerAnimation, onBe
       return; // Prevent multiple clicks
     }
 
-    setIsCreating(true);
+    // Clear any previous errors
+    setErrorMessage(null);
 
     try {
-      let finalImageUrl = imageUrl;
-      
-      // If image is a blob URL, upload it to R2
-      if (imageUrl.startsWith('blob:')) {
-        const response = await fetch(imageUrl);
-        const blob = await response.blob();
-        const arrayBuffer = await blob.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        
-        // Generate filename with user's pseudonym
-        const fileExtension = blob.type.split('/')[1] || 'jpg';
-        const timestamp = Date.now();
-        const sanitizedPseudonym = currentUser.pseudonym.replace(/[^a-zA-Z0-9]/g, '');
-        const fileName = `bets/${sanitizedPseudonym}-${timestamp}.${fileExtension}`;
-        
-        // Upload to R2
-        const uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: (() => {
-            const formData = new FormData();
-            formData.append('file', new File([buffer], fileName, { type: blob.type }));
-            formData.append('pseudonym', currentUser.pseudonym);
-            formData.append('fileType', 'bet');
-            return formData;
-          })(),
-        });
-        
-        if (!uploadResponse.ok) {
-          throw new Error('Failed to upload image');
-        }
-        
-        const { url } = await uploadResponse.json();
-        finalImageUrl = url;
-        
-        // Clean up blob URL
-        URL.revokeObjectURL(imageUrl);
-      }
-
-      // Save bet to Supabase
-      const { data: betData, error: betError } = await supabase
-        .from('bets')
-        .insert({
-          created_by: currentUser.id,
-          title: betName,
-          image_url: finalImageUrl,
-          is_resolved: false,
-          resolved_at: expirationDate ? new Date(expirationDate).toISOString() : null,
-        })
-        .select()
-        .single();
-
-      if (betError) {
-        throw betError;
-      }
-
-      console.log('Bet created successfully:', betData);
-
-      // Save participants to bet_participants table
-      // Always include the bet creator as an admin, but avoid duplicates
-      const allParticipants = [...new Set([currentUser.id, ...allSelectedMembers])];
-      const participantsData = allParticipants.map(userId => ({
-        bet_id: betData.id,
-        user_id: userId,
-        is_admin: userId === currentUser.id || crownedParticipants.includes(userId),
-        joined_at: new Date().toISOString(),
-      }));
-
-      const { error: participantsError } = await supabase
-        .from('bet_participants')
-        .insert(participantsData);
-
-      if (participantsError) {
-        console.error('Error saving participants:', participantsError);
-        // Note: We don't throw here as the bet was already created successfully
-      } else {
-        console.log('Participants saved successfully:', participantsData);
-      }
+      // Use the hook to create the bet
+      await createBet({
+        betName,
+        imageUrl,
+        expirationDate,
+        amount,
+        initialChoice,
+        initialPercentage,
+        allSelectedMembers,
+        crownedParticipants,
+        currentUser,
+        currentBalance,
+      });
       
       // Close dialog first
       onOpenChange(false);
@@ -449,9 +395,9 @@ export default function CreateBet({ open, onOpenChange, onTriggerAnimation, onBe
       
     } catch (error) {
       console.error('Error creating bet:', error);
-      // You might want to show an error message to the user here
-    } finally {
-      setIsCreating(false);
+      // Set error message for display
+      const errorMsg = error instanceof Error ? error.message : 'Failed to create bet';
+      setErrorMessage(errorMsg);
     }
   };
 
@@ -843,6 +789,13 @@ export default function CreateBet({ open, onOpenChange, onTriggerAnimation, onBe
             </div>
           </div>
         </div>
+
+        {/* Error message display */}
+        {errorMessage && (
+          <div className="mx-6 mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg">
+            <p className="text-sm text-red-500 font-medium">{errorMessage}</p>
+          </div>
+        )}
 
         <DialogFooter className="sm:justify-center">
           <Button

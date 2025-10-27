@@ -11,6 +11,7 @@ import Bet from '@/components/bet/betCard';
 import BetAnimation from '@/components/bet/betAnimation';
 import dbData from '@/backend/db.json';
 import { useSupabase } from '@/lib/hooks/supabase';
+import { useUserMoney } from '@/lib/database/money';
 
 // Process data from database
 const processRoomsAndBets = () => {
@@ -88,6 +89,10 @@ export default function Homepage() {
     pseudonym: string;
     avatar_url: string | null;
   } | null>(null);
+  
+  // Money state using custom hook
+  const { currentBalance, userInBets } = useUserMoney();
+  
   const [supabaseRooms, setSupabaseRooms] = useState<Array<{
     id: string;
     name: string;
@@ -133,14 +138,6 @@ export default function Homepage() {
   const [isSwiping, setIsSwiping] = useState(false);
   const [swipeDirection, setSwipeDirection] = useState<'horizontal' | 'vertical' | null>(null);
   const mainContentRef = useRef<HTMLDivElement>(null);
-
-  // Get current user data
-  const currentUser = dbData.users.find((u) => u.id === 'user_1');
-  const userCash = currentUser?.cash || 0;
-  
-  // Calculate user's total at stake from all their trades
-  const userTrades = dbData.trades.filter((t) => t.userId === 'user_1');
-  const userAtStake = userTrades.reduce((sum, t) => sum + t.amount, 0);
 
   // Refresh function to refetch all data
   const refreshData = async () => {
@@ -548,16 +545,16 @@ export default function Homepage() {
             <span className="text-xl font-semibold text-foreground">Betroom</span>
           </Link>
 
-          {/* User Info on the right */}
-          <div className="flex items-center gap-4 sm:gap-6">
-            <div className="flex flex-col items-center">
-              <span className="text-xs text-muted-foreground">Cash</span>
-              <span className="text-sm sm:text-base font-bold text-foreground">$0</span>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-xs text-muted-foreground">In Bets</span>
-              <span className="text-sm sm:text-base font-bold text-foreground">$0</span>
-            </div>
+                     {/* User Info on the right */}
+           <div className="flex items-center gap-4 sm:gap-6">
+             <div className="flex flex-col items-center">
+               <span className="text-xs text-muted-foreground">Cash</span>
+               <span className="text-sm sm:text-base font-bold text-foreground">${Math.round(currentBalance)}</span>
+             </div>
+             <div className="flex flex-col items-center">
+               <span className="text-xs text-muted-foreground">In Bets</span>
+               <span className="text-sm sm:text-base font-bold text-foreground">${Math.round(userInBets)}</span>
+             </div>
             <Link href="/profile">
               <Avatar className="w-10 h-10 cursor-pointer hover:opacity-80 transition-opacity">
                 <AvatarImage src={userProfile?.avatar_url || undefined} alt={userProfile?.pseudonym || 'Profile'} />
@@ -682,17 +679,17 @@ export default function Homepage() {
                     roomBets.map((bet) => (
                       <Bet
                         key={bet.id}
-                        id={parseInt(bet.id.replace(/\D/g, '')) || 0}
+                        id={bet.id}
                         roomId={bet.roomId === 'my-room' ? 0 : parseInt(bet.roomId?.replace(/\D/g, '') || '1') || 1}
                         title={bet.title}
                         imageUrl={bet.image_url}
-                        amountAtStake={0} // TODO: Calculate from trades table
+                        amountAtStake={0}
                         participants={bet.participants.map(p => ({
                           name: p.pseudonym,
                           image: p.avatar_url || '',
                           isAdmin: p.is_admin
                         }))}
-                        percentage={50} // TODO: Calculate from trades table
+                        percentage={50}
                         expirationDate={bet.resolved_at || bet.created_at}
                         onTriggerAnimation={triggerBetAnimation}
                       />

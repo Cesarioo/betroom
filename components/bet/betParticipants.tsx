@@ -3,57 +3,94 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Crown } from 'lucide-react';
 import dbData from '@/backend/db.json';
+import { useSupabase } from '@/lib/hooks/supabase';
+import { useEffect, useState } from 'react';
+
+interface Trade {
+  id: string;
+  bet_id: string;
+  user_id: string;
+  side: 'yes' | 'no';
+  price: number;
+  amount: number;
+  maker_trade_id: string | null;
+  created_at: string;
+}
 
 interface BetParticipantsProps {
   isExpanded: boolean;
-  betTrades: typeof dbData.trades;
+  betTrades: Trade[];
   roomId: number;
+  tradeUsers?: Map<string, { pseudonym: string; avatar_url: string | null }>;
 }
 
-export default function BetParticipants({ isExpanded, betTrades, roomId }: BetParticipantsProps) {
-  // Group trades by position
-  const yesTrades = betTrades.filter((t) => t.position === 'yes');
-  const noTrades = betTrades.filter((t) => t.position === 'no');
+export default function BetParticipants({ isExpanded, betTrades, roomId, tradeUsers }: BetParticipantsProps) {
+  const { supabase } = useSupabase();
+  const [roomAdmins, setRoomAdmins] = useState<any[]>([]);
+  
+  // Group trades by side
+  const yesTrades = betTrades.filter((t) => t.side === 'yes');
+  const noTrades = betTrades.filter((t) => t.side === 'no');
 
   // Get user details for trades with maker/taker relationship
-  const getTradeWithUser = (trade: typeof betTrades[0]) => {
-    const user = dbData.users.find((u) => u.id === trade.userId);
+  const getTradeWithUser = (trade: Trade) => {
+    const user = tradeUsers?.get(trade.user_id);
     
-    // If this is a taker, find the maker they're trading with
-    let counterpartyUser = null;
-    if (trade.type === 'taker' && trade.makerTradeId) {
-      const makerTrade = betTrades.find((t) => t.id === trade.makerTradeId);
-      if (makerTrade) {
-        counterpartyUser = dbData.users.find((u) => u.id === makerTrade.userId);
-      }
-    }
-    
-    return { trade, user, counterpartyUser };
+    return { trade, user };
   };
+
+  // Fetch room admins from bet_participants
+  useEffect(() => {
+    const fetchRoomAdmins = async () => {
+      try {
+        // Get all bets in the room
+        const { data: roomMembers } = await supabase
+          .from('room_members')
+          .select('user_id, is_admin')
+          .eq('room_id', roomId)
+          .eq('is_admin', true);
+
+        if (roomMembers) {
+          const adminIds = roomMembers.map((m: any) => m.user_id);
+          
+          // Get admin profiles
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, pseudonym, avatar_url')
+            .in('id', adminIds);
+
+          setRoomAdmins(profiles || []);
+        }
+      } catch (error) {
+        console.error('Error fetching room admins:', error);
+      }
+    };
+
+    if (isExpanded && roomId) {
+      fetchRoomAdmins();
+    }
+  }, [isExpanded, roomId, supabase]);
 
   if (!isExpanded) return null;
 
-  // Get room admins
-  const roomIdString = `room_${roomId}`;
-  const roomAdmins = dbData.users.filter((user) => {
-    const userRoom = user.rooms.find((r) => r.id === roomIdString);
-    return userRoom?.isAdmin === true;
-  });
-
-  // Group all trades by makerTradeId
-  const makerGroups = new Map<string, { maker: typeof betTrades[0], takers: typeof betTrades }>();
+  // Group all trades by maker_trade_id (makers are those with maker_trade_id === null)
+  const makerGroups = new Map<string, { maker: Trade; takers: Trade[] }>();
   
+  // First, add all makers to the map
   betTrades
-    .filter((trade) => trade.type === 'taker' && trade.makerTradeId)
+    .filter((trade) => trade.maker_trade_id === null)
+    .forEach((maker) => {
+      makerGroups.set(maker.id, { maker, takers: [] });
+    });
+  
+  // Then, add all takers to their respective maker groups
+  betTrades
+    .filter((trade) => trade.maker_trade_id !== null)
     .forEach((taker) => {
-      const makerId = taker.makerTradeId!;
-      if (!makerGroups.has(makerId)) {
-        const maker = betTrades.find(t => t.id === makerId);
-        if (maker) {
-          makerGroups.set(makerId, { maker, takers: [] });
-        }
+      const group = makerGroups.get(taker.maker_trade_id!);
+      if (group) {
+        group.takers.push(taker);
       }
-      makerGroups.get(makerId)?.takers.push(taker);
     });
 
   return (
@@ -76,7 +113,7 @@ export default function BetParticipants({ isExpanded, betTrades, roomId }: BetPa
           if (!makerUser) return null;
 
           // Check if THIS group has YES takers
-          const groupHasYesTakers = takers.some(t => t.position === 'yes');
+          const groupHasYesTakers = takers.some(t => t.side === 'yes');
 
           return (
             <div 
@@ -86,38 +123,38 @@ export default function BetParticipants({ isExpanded, betTrades, roomId }: BetPa
             >
               {/* YES Column - Show maker if YES, or takers if maker is NO */}
               <div className="space-y-2">
-                {maker.position === 'yes' ? (
+                {maker.side === 'yes' ? (
                   <div className="flex items-center gap-2">
                     <Avatar className="w-8 h-8 flex-shrink-0">
-                      <AvatarImage src={makerUser.profileImage} alt={makerUser.name} />
-                      <AvatarFallback className="text-xs">{makerUser.name[0]}</AvatarFallback>
+                      <AvatarImage src={makerUser.avatar_url || ''} alt={makerUser.pseudonym} />
+                      <AvatarFallback className="text-xs">{makerUser.pseudonym[0]}</AvatarFallback>
                     </Avatar>
                     <div className="min-w-0 max-w-[120px]">
                       <div className="text-xs font-medium text-foreground truncate">
-                        {makerUser.name}
+                        {makerUser.pseudonym}
                       </div>
                       <div className="text-[10px] text-muted-foreground whitespace-nowrap">
-                        ${maker.amount} @ {maker.percentage}%
+                        ${maker.amount} @ {maker.price}%
                       </div>
                     </div>
                   </div>
                 ) : (
                   takers.map((taker) => {
                     const { user: takerUser } = getTradeWithUser(taker);
-                    if (!takerUser || taker.position !== 'yes') return null;
+                    if (!takerUser || taker.side !== 'yes') return null;
                     
                     return (
                       <div key={taker.id} className="flex items-center gap-2">
                         <Avatar className="w-8 h-8 flex-shrink-0">
-                          <AvatarImage src={takerUser.profileImage} alt={takerUser.name} />
-                          <AvatarFallback className="text-xs">{takerUser.name[0]}</AvatarFallback>
+                          <AvatarImage src={takerUser.avatar_url || ''} alt={takerUser.pseudonym} />
+                          <AvatarFallback className="text-xs">{takerUser.pseudonym[0]}</AvatarFallback>
                         </Avatar>
                         <div className="min-w-0 max-w-[120px]">
                           <div className="text-xs font-medium text-foreground truncate">
-                            {takerUser.name}
+                            {takerUser.pseudonym}
                           </div>
                           <div className="text-[10px] text-muted-foreground whitespace-nowrap">
-                            ${taker.amount} @ {taker.percentage}%
+                            ${taker.amount} @ {taker.price}%
                           </div>
                         </div>
                       </div>
@@ -142,14 +179,14 @@ export default function BetParticipants({ isExpanded, betTrades, roomId }: BetPa
                           <div 
                             className="absolute top-1/2 -translate-y-1/2 h-[2px]"
                             style={{
-                              left: isFirstOfGroup && trade.position === 'no' ? '-25px' : '0',
-                              right: isFirstOfGroup && trade.position === 'yes' ? '-20px' : '0',
+                              left: isFirstOfGroup && trade.side === 'no' ? '-25px' : '0',
+                              right: isFirstOfGroup && trade.side === 'yes' ? '-20px' : '0',
                               background: 'linear-gradient(to right, rgb(34 197 94), rgb(239 68 68))'  // green (YES/left) to red (NO/right)
                             }}
                           />
                           
                           {isFirstOfGroup && (
-                            trade.position === 'no' ? (
+                            trade.side === 'no' ? (
                               <div className="absolute top-1/2 -translate-y-1/2 w-0 h-0 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent border-r-[6px] border-r-green-500" style={{ left: '-30px' }} />
                             ) : (
                               <div className="absolute top-1/2 -translate-y-1/2 w-0 h-0 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent border-l-[6px] border-l-red-500" style={{ right: '-24px' }} />
@@ -157,7 +194,7 @@ export default function BetParticipants({ isExpanded, betTrades, roomId }: BetPa
                           )}
                           
                           {isSubsequentInGroup && (
-                            trade.position === 'no' ? (
+                            trade.side === 'no' ? (
                               <div 
                                 className="absolute left-0 bottom-1/2 w-[2px]"
                                 style={{ 
@@ -184,38 +221,38 @@ export default function BetParticipants({ isExpanded, betTrades, roomId }: BetPa
 
               {/* NO Column - Show maker if NO, or takers */}
               <div className="space-y-2 w-[115px]">
-                {maker.position === 'no' ? (
+                {maker.side === 'no' ? (
                   <div className="flex items-center gap-2 pl-2">
                     <Avatar className="w-8 h-8 flex-shrink-0">
-                      <AvatarImage src={makerUser.profileImage} alt={makerUser.name} />
-                      <AvatarFallback className="text-xs">{makerUser.name[0]}</AvatarFallback>
+                      <AvatarImage src={makerUser.avatar_url || ''} alt={makerUser.pseudonym} />
+                      <AvatarFallback className="text-xs">{makerUser.pseudonym[0]}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="text-xs font-medium text-foreground truncate">
-                        {makerUser.name}
+                        {makerUser.pseudonym}
                       </div>
                       <div className="text-[10px] text-muted-foreground">
-                        ${maker.amount} @ {maker.percentage}%
+                        ${maker.amount} @ {maker.price}%
                       </div>
                     </div>
                   </div>
                 ) : (
                   takers.map((taker) => {
                     const { user: takerUser } = getTradeWithUser(taker);
-                    if (!takerUser || taker.position !== 'no') return null;
+                    if (!takerUser || taker.side !== 'no') return null;
                     
                     return (
                       <div key={taker.id} className="flex items-center gap-2 pl-2">
                         <Avatar className="w-8 h-8 flex-shrink-0">
-                          <AvatarImage src={takerUser.profileImage} alt={takerUser.name} />
-                          <AvatarFallback className="text-xs">{takerUser.name[0]}</AvatarFallback>
+                          <AvatarImage src={takerUser.avatar_url || ''} alt={takerUser.pseudonym} />
+                          <AvatarFallback className="text-xs">{takerUser.pseudonym[0]}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <div className="text-xs font-medium text-foreground truncate">
-                            {takerUser.name}
+                            {takerUser.pseudonym}
                           </div>
                           <div className="text-[10px] text-muted-foreground">
-                            ${taker.amount} @ {taker.percentage}%
+                            ${taker.amount} @ {taker.price}%
                           </div>
                         </div>
                       </div>
@@ -237,8 +274,8 @@ export default function BetParticipants({ isExpanded, betTrades, roomId }: BetPa
               {roomAdmins.map((admin, index) => (
                 <div key={admin.id} className="relative" style={{ zIndex: roomAdmins.length - index }}>
                   <Avatar className="w-8 h-8 ring-2 ring-background">
-                    <AvatarImage src={admin.profileImage} alt={admin.name} />
-                    <AvatarFallback className="text-xs">{admin.name[0]}</AvatarFallback>
+                    <AvatarImage src={admin.avatar_url || ''} alt={admin.pseudonym} />
+                    <AvatarFallback className="text-xs">{admin.pseudonym[0]}</AvatarFallback>
                   </Avatar>
                   <Crown className="absolute -top-1 -right-1 h-4 w-4 text-red-500 fill-red-500" />
                 </div>

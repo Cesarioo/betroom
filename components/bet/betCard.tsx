@@ -1,15 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import dbData from '@/backend/db.json';
 import BetDialog from './betDialog';
 import BetParticipants from './betParticipants';
 import ResolveDialog from './resolve';
+import { useSupabase } from '@/lib/hooks/supabase';
 
 interface Participant {
   name: string;
@@ -17,7 +17,7 @@ interface Participant {
 }
 
 interface BetProps {
-  id: number;
+  id: string;
   roomId: number;
   title: string;
   imageUrl: string;
@@ -51,53 +51,118 @@ export default function Bet({
   const [betAmount, setBetAmount] = useState('');
   const [betChoice, setBetChoice] = useState<'yes' | 'no'>('yes');
   const [isExpanded, setIsExpanded] = useState(false);
+  const [initialDialogMode, setInitialDialogMode] = useState<'take' | 'propose'>('take');
 
+  const { supabase } = useSupabase();
   const displayedParticipants = participants.slice(0, 3);
   const remainingCount = Math.max(0, participants.length - 3);
 
-  // Get all trades for this bet
-  const betId = `bet_${id}`;
-  const betTrades = dbData.trades.filter((t) => t.betId === betId);
+  // Supabase data state
+  const [betTrades, setBetTrades] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isUserAdmin, setIsUserAdmin] = useState(false);
+  const [tradeUsers, setTradeUsers] = useState<Map<string, { pseudonym: string; avatar_url: string | null }>>(new Map());
+  const [calculatedAmountAtStake, setCalculatedAmountAtStake] = useState(0);
 
-  // Calculate open interest (unfilled maker orders)
-  const openMakerOrders = betTrades.filter(
-    (t) => t.type === 'maker' && (t.status === 'open' || t.status === 'partially_filled')
-  );
+  // Fetch data from Supabase
+  useEffect(() => {
+    const fetchBetData = async () => {
+      try {
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
 
-  // Group by position - remember: YES makers show on NO button and vice versa
-  const yesButtonOrders = openMakerOrders.filter((t) => t.position === 'no'); // NO makers show on YES button
-  const noButtonOrders = openMakerOrders.filter((t) => t.position === 'yes'); // YES makers show on NO button
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        setCurrentUser(profile);
 
-  // Calculate weighted mid price between YES and NO sides (like OB mid)
+        // Check if user is admin of this bet
+        const { data: participant } = await supabase
+          .from('bet_participants')
+          .select('is_admin')
+          .eq('bet_id', id)
+          .eq('user_id', user.id)
+          .single();
+        
+        setIsUserAdmin(participant?.is_admin || false);
+
+        // Get all trades for this bet
+        const { data: trades } = await supabase
+          .from('trades')
+          .select('*')
+          .eq('bet_id', id);
+
+        setBetTrades(trades || []);
+
+        // Calculate total stake from all trades
+        const totalStake = trades?.reduce((sum: number, t: any) => sum + t.amount, 0) || 0;
+        setCalculatedAmountAtStake(totalStake);
+
+        // Get unique user IDs from trades
+        const userIds = [...new Set(trades?.map((t: any) => t.user_id) || [])];
+        
+        // Fetch user profiles for all traders
+        if (userIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, pseudonym, avatar_url')
+            .in('id', userIds);
+
+          const usersMap = new Map(profiles?.map((p: any) => [p.id, { pseudonym: p.pseudonym, avatar_url: p.avatar_url }]) || []);
+          setTradeUsers(usersMap);
+        }
+      } catch (error) {
+        console.error('Error fetching bet data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchBetData();
+  }, [supabase, id]);
+
+  // Identify makers (trades with maker_trade_id === null)
+  const makerTrades = betTrades.filter((t: any) => t.maker_trade_id === null);
+  const takerTrades = betTrades.filter((t: any) => t.maker_trade_id !== null);
+  
+  // Group makers by side - makers on YES side show on NO button (opposite side)
+  // and makers on NO side show on YES button (opposite side)
+  const yesButtonOrders = makerTrades.filter((t: any) => t.side === 'no'); // NO makers show on YES button
+  const noButtonOrders = makerTrades.filter((t: any) => t.side === 'yes'); // YES makers show on NO button
+
+  // Calculate weighted mid price between YES and NO sides (only from makers)
   const calculateWeightedPercentage = () => {
-    if (openMakerOrders.length === 0) return percentage; // fallback to prop if no open orders
+    if (makerTrades.length === 0) return percentage; // fallback to prop if no makers
     
-    // Calculate weighted average, normalizing NO positions to YES equivalent
-    const totalWeightedPercentage = openMakerOrders.reduce((sum, order) => {
-      // For NO positions, convert to YES equivalent: 100 - percentage
-      const yesEquivalentPercentage = order.position === 'no' 
-        ? (100 - order.percentage) 
-        : order.percentage;
-      return sum + (order.amount * yesEquivalentPercentage);
-    }, 0);
+    // Get all YES and NO makers
+    const yesMakers = makerTrades.filter((t: any) => t.side === 'yes');
+    const noMakers = makerTrades.filter((t: any) => t.side === 'no');
     
-    const totalAmount = openMakerOrders.reduce((sum, order) => sum + order.amount, 0);
+    // Calculate total amounts for YES and NO sides
+    const yesTotal = yesMakers.reduce((sum: number, order: any) => sum + order.amount, 0);
+    const noTotal = noMakers.reduce((sum: number, order: any) => sum + order.amount, 0);
+    const totalAmount = yesTotal + noTotal;
     
-    return totalAmount > 0 ? Math.round(totalWeightedPercentage / totalAmount) : percentage;
+    if (totalAmount === 0) return percentage;
+    
+    // Calculate weighted price - YES makers use their price, NO makers use (100 - price)
+    const yesWeightedPrice = yesMakers.reduce((sum: number, order: any) => 
+      sum + (order.amount * order.price), 0);
+    const noWeightedPrice = noMakers.reduce((sum: number, order: any) => 
+      sum + (order.amount * (100 - order.price)), 0);
+    
+    return Math.round((yesWeightedPrice + noWeightedPrice) / totalAmount);
   };
 
   const displayPercentage = calculateWeightedPercentage();
-
-  // Get current user (user_1)
-  const currentUser = dbData.users.find((u) => u.id === 'user_1');
   
   // Check if bet is expired
   const isBetExpired = new Date(expirationDate) < new Date();
-  
-  // Check if current user is admin of this room
-  const roomIdString = `room_${roomId}`;
-  const userRoom = currentUser?.rooms.find((r) => r.id === roomIdString);
-  const isUserAdmin = userRoom?.isAdmin || false;
   
   // Get opponent and max available based on selected choice
   const getOpponentAndMax = (choice: 'yes' | 'no') => {
@@ -106,12 +171,16 @@ export default function Bet({
       return { opponent: null, maxAvailable: 0 };
     }
     
-    // Get the first order's user as opponent
+    // Get the first order's user as opponent (from tradeUsers map)
     const firstOrder = orders[0];
-    const opponent = dbData.users.find((u) => u.id === firstOrder.userId);
+    const user = tradeUsers.get(firstOrder.user_id);
+    const opponent = user ? {
+      name: user.pseudonym,
+      profileImage: user.avatar_url || '',
+    } : null;
     
     // Calculate total available amount
-    const maxAvailable = orders.reduce((sum, order) => sum + order.amount, 0);
+    const maxAvailable = orders.reduce((sum: number, order: any) => sum + order.amount, 0);
     
     return { opponent, maxAvailable };
   };
@@ -119,6 +188,17 @@ export default function Bet({
   const handleBetClick = (choice: 'yes' | 'no') => {
     setBetChoice(choice);
     setSelectedAnswer(choice);
+    
+    // Check if there are maker orders for this choice
+    const orders = choice === 'yes' ? yesButtonOrders : noButtonOrders;
+    
+    // If no maker orders available, open in "propose" mode
+    if (orders.length === 0) {
+      setInitialDialogMode('propose');
+    } else {
+      setInitialDialogMode('take');
+    }
+    
     setIsBetDialogOpen(true);
   };
 
@@ -293,12 +373,12 @@ export default function Bet({
               <span>Yes</span>
               {yesButtonOrders.length > 0 && (
                 <div className="flex -space-x-1.5">
-                  {yesButtonOrders.slice(0, 3).map((order) => {
-                    const user = dbData.users.find((u) => u.id === order.userId);
+                  {yesButtonOrders.slice(0, 3).map((order: any) => {
+                    const user = tradeUsers.get(order.user_id);
                     return user ? (
                       <Avatar key={order.id} className="w-4 h-4">
-                        <AvatarImage src={user.profileImage} alt={user.name} />
-                        <AvatarFallback className="text-[8px]">{user.name[0]}</AvatarFallback>
+                        <AvatarImage src={user.avatar_url || ''} alt={user.pseudonym || 'User'} />
+                        <AvatarFallback className="text-[8px]">{user.pseudonym?.[0] || 'U'}</AvatarFallback>
                       </Avatar>
                     ) : null;
                   })}
@@ -313,12 +393,12 @@ export default function Bet({
               <span>No</span>
               {noButtonOrders.length > 0 && (
                 <div className="flex -space-x-1.5">
-                  {noButtonOrders.slice(0, 3).map((order) => {
-                    const user = dbData.users.find((u) => u.id === order.userId);
+                  {noButtonOrders.slice(0, 3).map((order: any) => {
+                    const user = tradeUsers.get(order.user_id);
                     return user ? (
                       <Avatar key={order.id} className="w-4 h-4">
-                        <AvatarImage src={user.profileImage} alt={user.name} />
-                        <AvatarFallback className="text-[8px]">{user.name[0]}</AvatarFallback>
+                        <AvatarImage src={user.avatar_url || ''} alt={user.pseudonym || 'User'} />
+                        <AvatarFallback className="text-[8px]">{user.pseudonym?.[0] || 'U'}</AvatarFallback>
                       </Avatar>
                     ) : null;
                   })}
@@ -333,7 +413,7 @@ export default function Bet({
           {/* Stake */}
           <div className="flex flex-col justify-between gap-0.5">
             <span className="text-xs text-muted-foreground">Stake</span>
-            <span className="text-sm font-bold text-foreground">${amountAtStake}</span>
+            <span className="text-sm font-bold text-foreground">${Math.round(calculatedAmountAtStake)}</span>
           </div>
 
           {/* Expiration */}
@@ -382,6 +462,7 @@ export default function Bet({
           isExpanded={isExpanded}
           betTrades={betTrades}
           roomId={roomId}
+          tradeUsers={tradeUsers}
         />
       </CardContent>
 
@@ -396,8 +477,8 @@ export default function Bet({
         setBetAmount={setBetAmount}
         onPlaceBet={handlePlaceBet}
         currentUser={{
-          name: currentUser?.name || 'You',
-          profileImage: currentUser?.profileImage || '',
+          name: currentUser?.pseudonym || 'You',
+          profileImage: currentUser?.avatar_url || '',
         }}
         opponentUser={(() => {
           const { opponent } = getOpponentAndMax(betChoice);
@@ -409,6 +490,9 @@ export default function Bet({
         maxAvailable={getOpponentAndMax(betChoice).maxAvailable}
         betId={id}
         onTriggerAnimation={onTriggerAnimation}
+        initialMode={initialDialogMode}
+        yesButtonOrders={yesButtonOrders}
+        noButtonOrders={noButtonOrders}
       />
 
       {/* Resolve Dialog */}
