@@ -14,35 +14,82 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ChevronDown, Crown } from 'lucide-react';
-import dbData from '@/backend/db.json';
+import { useSupabase } from '@/lib/hooks/supabase';
 
 interface AddGroupProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onRoomCreated?: () => void;
 }
 
-export default function AddGroup({ open, onOpenChange }: AddGroupProps) {
+export default function AddGroup({ open, onOpenChange, onRoomCreated }: AddGroupProps) {
   const [roomName, setRoomName] = useState('');
-  const [selectedParticipants, setSelectedParticipants] = useState<string[]>(['user_1']);
-  const [crownedParticipants, setCrownedParticipants] = useState<string[]>(['user_1']);
+  const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
+  const [crownedParticipants, setCrownedParticipants] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
-  // Get all participants except current user (user_1)
-  const availableParticipants = dbData.users.filter(user => user.id !== 'user_1');
+  // Supabase data
+  const { supabase } = useSupabase();
+  const [supabaseProfiles, setSupabaseProfiles] = useState<Array<{
+    id: string;
+    pseudonym: string;
+    avatar_url: string | null;
+  }>>([]);
+  const [currentUser, setCurrentUser] = useState<{ id: string; pseudonym: string; avatar_url: string | null } | null>(null);
+
+  // Get all participants except current user
+  const availableParticipants = supabaseProfiles;
   
   // Filter participants by search query
   const filteredParticipants = availableParticipants.filter(user =>
-    user.name.toLowerCase().includes(searchQuery.toLowerCase())
+    user.pseudonym.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Fetch data from Supabase
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // Get current user profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id, pseudonym, avatar_url')
+          .eq('id', user.id)
+          .single();
+        
+        if (profile) {
+          setCurrentUser(profile);
+        }
+
+        // Get all profiles (participants)
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, pseudonym, avatar_url')
+          .neq('id', user.id); // Exclude current user
+        
+        if (profiles) {
+          setSupabaseProfiles(profiles);
+        }
+      } catch (err) {
+        console.error('Error fetching data:', err);
+      }
+    };
+
+    fetchData();
+  }, [supabase]);
 
   // Reset state when dialog closes
   useEffect(() => {
     if (!open) {
       setRoomName('');
-      setSelectedParticipants(['user_1']);
-      setCrownedParticipants(['user_1']);
+      setSelectedParticipants([]);
+      setCrownedParticipants([]);
       setSearchQuery('');
+      setIsCreating(false);
     }
   }, [open]);
 
@@ -64,18 +111,73 @@ export default function AddGroup({ open, onOpenChange }: AddGroupProps) {
     }
   };
 
-  const handleAddGroup = () => {
-    // TODO: Handle adding group logic here
-    console.log('Room Name:', roomName);
-    console.log('Selected Participants:', selectedParticipants);
-    console.log('Crowned Participants:', crownedParticipants);
-    
-    // Reset and close
-    setRoomName('');
-    setSelectedParticipants(['user_1']);
-    setCrownedParticipants(['user_1']);
-    setSearchQuery('');
-    onOpenChange(false);
+  const handleAddGroup = async () => {
+    if (!currentUser) {
+      console.error('No current user found');
+      return;
+    }
+
+    if (isCreating) {
+      return; // Prevent multiple clicks
+    }
+
+    setIsCreating(true);
+
+    try {
+      // Create room in Supabase
+      const { data: roomData, error: roomError } = await supabase
+        .from('rooms')
+        .insert({
+          name: roomName,
+        })
+        .select()
+        .single();
+
+      if (roomError) {
+        throw roomError;
+      }
+
+      console.log('Room created successfully:', roomData);
+
+       // Add all participants to room_members table
+       // Selected participants first (left), then current user (right)
+       const allParticipants = [...selectedParticipants, currentUser.id];
+      const membersData = allParticipants.map(userId => ({
+        room_id: roomData.id,
+        user_id: userId,
+        is_admin: userId === currentUser.id || crownedParticipants.includes(userId),
+        joined_at: new Date().toISOString(),
+      }));
+
+      const { error: membersError } = await supabase
+        .from('room_members')
+        .insert(membersData);
+
+      if (membersError) {
+        console.error('Error saving room members:', membersError);
+        // Note: We don't throw here as the room was already created successfully
+      } else {
+        console.log('Room members saved successfully:', membersData);
+      }
+      
+      // Reset and close
+      setRoomName('');
+      setSelectedParticipants([]);
+      setCrownedParticipants([]);
+      setSearchQuery('');
+      onOpenChange(false);
+      
+      // Trigger refresh of homepage data
+      if (onRoomCreated) {
+        onRoomCreated();
+      }
+      
+    } catch (error) {
+      console.error('Error creating room:', error);
+      // You might want to show an error message to the user here
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const isComplete = roomName.trim() !== '' && selectedParticipants.length > 0;
@@ -95,17 +197,18 @@ export default function AddGroup({ open, onOpenChange }: AddGroupProps) {
         
         <div className="py-4 space-y-4">
           {/* Selected Participants Display */}
-          {selectedParticipants.length > 0 && (
+          {(selectedParticipants.length > 0 || currentUser) && (
             <div className="flex justify-center">
               <div className="flex -space-x-4">
+                {/* Show selected participants first (left) */}
                 {selectedParticipants.map((userId, index) => {
-                  const user = dbData.users.find(u => u.id === userId);
+                  const user = availableParticipants.find(u => u.id === userId);
                   const isCrowned = crownedParticipants.includes(userId);
                   return user ? (
                     <div key={userId} className="relative" style={{ zIndex: selectedParticipants.length - index }}>
                       <Avatar className="w-16 h-16 ring-4 ring-background">
-                        <AvatarImage src={user.profileImage} alt={user.name} />
-                        <AvatarFallback className="text-lg">{user.name[0]}</AvatarFallback>
+                        <AvatarImage src={user.avatar_url || undefined} alt={user.pseudonym} />
+                        <AvatarFallback className="text-lg">{user.pseudonym[0]}</AvatarFallback>
                       </Avatar>
                       {isCrowned && (
                         <Crown className="absolute -top-2 -right-2 h-6 w-6 text-red-500 fill-red-500" />
@@ -113,6 +216,16 @@ export default function AddGroup({ open, onOpenChange }: AddGroupProps) {
                     </div>
                   ) : null;
                 })}
+                {/* Show current user last (right) */}
+                {currentUser && (
+                  <div className="relative" style={{ zIndex: (selectedParticipants.length + 1) }}>
+                    <Avatar className="w-16 h-16 ring-4 ring-background">
+                      <AvatarImage src={currentUser.avatar_url || undefined} alt={currentUser.pseudonym} />
+                      <AvatarFallback className="text-lg">{currentUser.pseudonym[0]}</AvatarFallback>
+                    </Avatar>
+                    <Crown className="absolute -top-2 -right-2 h-6 w-6 text-red-500 fill-red-500" />
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -144,13 +257,13 @@ export default function AddGroup({ open, onOpenChange }: AddGroupProps) {
                     <div className="flex items-center gap-1">
                       <div className="flex -space-x-2">
                         {selectedParticipants.slice(0, 3).map((userId, index) => {
-                          const user = dbData.users.find(u => u.id === userId);
+                          const user = availableParticipants.find(u => u.id === userId);
                           const isCrowned = crownedParticipants.includes(userId);
                           return user ? (
                             <div key={userId} className="relative" style={{ zIndex: 3 - index }}>
                               <Avatar className="w-6 h-6 ring-2 ring-background">
-                                <AvatarImage src={user.profileImage} alt={user.name} />
-                                <AvatarFallback className="text-[10px]">{user.name[0]}</AvatarFallback>
+                                <AvatarImage src={user.avatar_url || undefined} alt={user.pseudonym} />
+                                <AvatarFallback className="text-[10px]">{user.pseudonym[0]}</AvatarFallback>
                               </Avatar>
                               {isCrowned && (
                                 <Crown className="absolute -top-1 -right-1 h-3 w-3 text-red-500 fill-red-500" />
@@ -208,10 +321,10 @@ export default function AddGroup({ open, onOpenChange }: AddGroupProps) {
                             className={`w-full flex items-center gap-2 px-3 py-1.5 hover:bg-accent transition-colors ${isSelected ? 'bg-accent/50' : ''}`}
                           >
                             <Avatar className="w-6 h-6 flex-shrink-0">
-                              <AvatarImage src={user.profileImage} alt={user.name} />
-                              <AvatarFallback className="text-[10px]">{user.name[0]}</AvatarFallback>
+                              <AvatarImage src={user.avatar_url || undefined} alt={user.pseudonym} />
+                              <AvatarFallback className="text-[10px]">{user.pseudonym[0]}</AvatarFallback>
                             </Avatar>
-                            <span className="flex-1 text-left text-sm">{user.name}</span>
+                            <span className="flex-1 text-left text-sm">{user.pseudonym}</span>
                             {isSelected && (
                               isCrowned ? (
                                 <Crown className="h-4 w-4 text-red-500 flex-shrink-0" />
@@ -234,9 +347,17 @@ export default function AddGroup({ open, onOpenChange }: AddGroupProps) {
           <Button
             type="submit"
             onClick={handleAddGroup}
-            disabled={!isComplete}
+            disabled={!isComplete || isCreating}
+            className="min-w-[120px]"
           >
-            Add Group
+            {isCreating ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                Creating...
+              </div>
+            ) : (
+              'Add Group'
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

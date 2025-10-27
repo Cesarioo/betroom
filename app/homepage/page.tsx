@@ -4,12 +4,13 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Plus } from 'lucide-react';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import AddRoom from '@/components/addRoom';
 import CreateBet from '@/components/createBet';
 import Bet from '@/components/bet/betCard';
 import BetAnimation from '@/components/bet/betAnimation';
 import dbData from '@/backend/db.json';
+import { useSupabase } from '@/lib/hooks/supabase';
 
 // Process data from database
 const processRoomsAndBets = () => {
@@ -79,11 +80,40 @@ const processRoomsAndBets = () => {
 const { rooms, bets } = processRoomsAndBets();
 
 export default function Homepage() {
-  const [selectedRoomId, setSelectedRoomId] = useState<number | null>(0);
+  const { supabase } = useSupabase();
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [isAddRoomOpen, setIsAddRoomOpen] = useState(false);
   const [isCreateBetOpen, setIsCreateBetOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const roomRefs = useRef<{ [key: number]: HTMLButtonElement | null }>({});
+  const [userProfile, setUserProfile] = useState<{
+    pseudonym: string;
+    avatar_url: string | null;
+  } | null>(null);
+  const [supabaseRooms, setSupabaseRooms] = useState<Array<{
+    id: string;
+    name: string;
+    members: Array<{
+      name: string;
+      image: string;
+    }>;
+    isPersonal?: boolean;
+  }>>([]);
+  const [supabaseBets, setSupabaseBets] = useState<Array<{
+    id: string;
+    title: string;
+    image_url: string;
+    created_by: string;
+    is_resolved: boolean;
+    created_at: string;
+    resolved_at: string | null;
+    participants: Array<{
+      user_id: string;
+      is_admin: boolean;
+      pseudonym: string;
+      avatar_url: string | null;
+    }>;
+    roomId?: string; // Inferred room ID
+  }>>([]);
+  const roomRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   // Animation state
@@ -112,9 +142,254 @@ export default function Homepage() {
   const userTrades = dbData.trades.filter((t) => t.userId === 'user_1');
   const userAtStake = userTrades.reduce((sum, t) => sum + t.amount, 0);
 
-  const handleLogin = () => {
-    setIsLoggedIn(true);
+  // Refresh function to refetch all data
+  const refreshData = async () => {
+    await fetchUserProfile();
+    await fetchRooms();
+    // fetchBets will be called automatically when supabaseRooms updates
   };
+
+  // Fetch user profile from Supabase
+  const fetchUserProfile = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('pseudonym, avatar_url')
+          .eq('id', user.id)
+          .single();
+        
+        if (!error && profile) {
+          setUserProfile(profile);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching user profile:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, [supabase]);
+
+  // Fetch rooms from Supabase
+  const fetchRooms = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) return;
+
+      // Get user profile for "My Room"
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('pseudonym, avatar_url')
+        .eq('id', user.id)
+        .single();
+
+      // Create "My Room" as the first room (virtual room - not in DB)
+      const myRoom = {
+        id: 'my-room', // Special ID for virtual personal room
+        name: `${profile?.pseudonym || 'My'}'s Room`,
+        members: [{
+          name: profile?.pseudonym || 'You',
+          image: profile?.avatar_url || '',
+        }],
+        isPersonal: true, // Flag to identify this as the personal room
+      };
+
+      // Get rooms where the user is a member
+      const { data: roomMemberships, error: memberError } = await supabase
+        .from('room_members')
+        .select(`
+          room_id,
+          rooms (
+            id,
+            name
+          )
+        `)
+        .eq('user_id', user.id);
+
+      if (memberError) throw memberError;
+
+      let otherRooms: Array<{
+        id: string;
+        name: string;
+        members: Array<{ name: string; image: string }>;
+      }> = [];
+
+      if (roomMemberships && roomMemberships.length > 0) {
+        // For each room, get all members with their profiles
+        const roomsWithMembers = await Promise.all(
+          roomMemberships.map(async (membership: any) => {
+            const room = membership.rooms;
+            
+            // Get all members of this room
+            const { data: members, error: membersError } = await supabase
+              .from('room_members')
+              .select(`
+                user_id,
+                profiles (
+                  pseudonym,
+                  avatar_url
+                )
+              `)
+              .eq('room_id', room.id);
+
+            if (membersError) {
+              console.error('Error fetching room members:', membersError);
+              return null;
+            }
+
+            return {
+              id: room.id,
+              name: room.name,
+              members: members?.map((m: any) => ({
+                name: m.profiles?.pseudonym || 'Unknown',
+                image: m.profiles?.avatar_url || '',
+              })) || [],
+            };
+          })
+        );
+
+        otherRooms = roomsWithMembers.filter((r): r is NonNullable<typeof r> => r !== null);
+      }
+
+      // Combine My Room with other rooms
+      const allRooms = [myRoom, ...otherRooms];
+      setSupabaseRooms(allRooms);
+      
+      // Set My Room as selected by default
+      if (!selectedRoomId) {
+        setSelectedRoomId(myRoom.id);
+      }
+    } catch (err) {
+      console.error('Error fetching rooms:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchRooms();
+  }, [supabase]);
+
+  // Fetch bets from Supabase
+  const fetchBets = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) return;
+
+      // Get all bets where the user is a participant
+      const { data: userBets, error: betsError } = await supabase
+        .from('bet_participants')
+        .select(`
+          bet_id,
+          is_admin,
+          bets (
+            id,
+            title,
+            image_url,
+            created_by,
+            is_resolved,
+            created_at,
+            resolved_at
+          )
+        `)
+        .eq('user_id', user.id);
+
+      if (betsError) throw betsError;
+
+      if (userBets && userBets.length > 0) {
+        // Get all participants for each bet
+        const betsWithParticipants = await Promise.all(
+          userBets.map(async (userBet: any) => {
+            const bet = userBet.bets;
+            
+            // Get all participants for this bet
+            const { data: participants, error: participantsError } = await supabase
+              .from('bet_participants')
+              .select(`
+                user_id,
+                is_admin,
+                profiles (
+                  pseudonym,
+                  avatar_url
+                )
+              `)
+              .eq('bet_id', bet.id);
+
+            if (participantsError) {
+              console.error('Error fetching bet participants:', participantsError);
+              return null;
+            }
+
+            return {
+              id: bet.id,
+              title: bet.title,
+              image_url: bet.image_url,
+              created_by: bet.created_by,
+              is_resolved: bet.is_resolved,
+              created_at: bet.created_at,
+              resolved_at: bet.resolved_at,
+              participants: participants?.map((p: any) => ({
+                user_id: p.user_id,
+                is_admin: p.is_admin,
+                pseudonym: p.profiles?.pseudonym || 'Unknown',
+                avatar_url: p.profiles?.avatar_url || null,
+              })) || [],
+            };
+          })
+        );
+
+        const validBets = betsWithParticipants.filter((bet): bet is NonNullable<typeof bet> => bet !== null);
+        
+        // Create multiple bet entries - one for each room the bet should appear in
+        const betsWithRooms: Array<typeof validBets[0] & { roomId: string }> = [];
+        
+        validBets.forEach(bet => {
+          // Always add to personal room (shows ALL user's bets)
+          betsWithRooms.push({
+            ...bet,
+            roomId: 'my-room',
+          });
+          
+          // Also add to specific room if participants match exactly
+          const matchingRoom = supabaseRooms.find(room => {
+            if (room.id === 'my-room') {
+              return false; // Skip personal room
+            } else {
+              // For regular rooms, check if participants match room members exactly
+              const roomMemberNames = room.members.map(m => m.name);
+              const betParticipantNames = bet.participants.map(p => p.pseudonym);
+              
+              // Check if all bet participants are in this room AND all room members are in the bet
+              return betParticipantNames.every(name => roomMemberNames.includes(name)) &&
+                     roomMemberNames.every(name => betParticipantNames.includes(name));
+            }
+          });
+          
+          if (matchingRoom) {
+            betsWithRooms.push({
+              ...bet,
+              roomId: matchingRoom.id,
+            });
+          }
+        });
+
+        setSupabaseBets(betsWithRooms);
+      }
+    } catch (err) {
+      console.error('Error fetching bets:', err);
+    }
+  };
+
+  useEffect(() => {
+    // Only fetch bets after rooms are loaded
+    if (supabaseRooms.length > 0) {
+      fetchBets();
+    }
+  }, [supabase, supabaseRooms]);
 
   const triggerBetAnimation = (data: {
     choice: 'yes' | 'no';
@@ -127,7 +402,7 @@ export default function Homepage() {
     setShowBetAnimation(true);
   };
 
-  const handleRoomSelect = (roomId: number) => {
+  const handleRoomSelect = (roomId: string) => {
     setSelectedRoomId(roomId);
     
     // Scroll the selected room to the left
@@ -231,14 +506,14 @@ export default function Homepage() {
       const isRightSwipe = distance < -minSwipeDistance;
 
       // Get current room index
-      const currentIndex = rooms.findIndex(r => r.id === selectedRoomId);
+      const currentIndex = supabaseRooms.findIndex(r => r.id === selectedRoomId);
 
-      if (isLeftSwipe && currentIndex < rooms.length - 1) {
+      if (isLeftSwipe && currentIndex < supabaseRooms.length - 1) {
         // Swipe left: go to next room
-        handleRoomSelect(rooms[currentIndex + 1].id);
+        handleRoomSelect(supabaseRooms[currentIndex + 1].id);
       } else if (isRightSwipe && currentIndex > 0) {
         // Swipe right: go to previous room
-        handleRoomSelect(rooms[currentIndex - 1].id);
+        handleRoomSelect(supabaseRooms[currentIndex - 1].id);
       }
     }
 
@@ -251,7 +526,7 @@ export default function Homepage() {
   };
 
   // Calculate the transform offset based on selected room
-  const currentRoomIndex = rooms.findIndex(r => r.id === selectedRoomId);
+  const currentRoomIndex = supabaseRooms.findIndex(r => r.id === selectedRoomId);
   const baseOffset = currentRoomIndex * -100; // -100% per room
   const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 375; // Default to mobile width
   const totalOffset = baseOffset + (swipeOffset / (mainContentRef.current?.offsetWidth || viewportWidth)) * 100;
@@ -273,40 +548,23 @@ export default function Homepage() {
             <span className="text-xl font-semibold text-foreground">Betroom</span>
           </Link>
 
-          {/* Sign In / Sign Up or User Info on the right */}
-          {!isLoggedIn ? (
-            <div className="flex items-center gap-6">
-              <button 
-                onClick={handleLogin}
-                className="text-sm font-medium text-muted-foreground hover:text-accent-foreground transition-colors"
-              >
-                Sign In
-              </button>
-              <button 
-                onClick={handleLogin}
-                className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
-              >
-                Sign Up
-              </button>
+          {/* User Info on the right */}
+          <div className="flex items-center gap-4 sm:gap-6">
+            <div className="flex flex-col items-center">
+              <span className="text-xs text-muted-foreground">Cash</span>
+              <span className="text-sm sm:text-base font-bold text-foreground">$0</span>
             </div>
-          ) : (
-            <div className="flex items-center gap-4 sm:gap-6">
-              <div className="flex flex-col items-center">
-                <span className="text-xs text-muted-foreground">Cash</span>
-                <span className="text-sm sm:text-base font-bold text-foreground">${userCash}</span>
-              </div>
-              <div className="flex flex-col items-center">
-                <span className="text-xs text-muted-foreground">In Bets</span>
-                <span className="text-sm sm:text-base font-bold text-foreground">${userAtStake}</span>
-              </div>
-              <Link href="/profile">
-                <Avatar className="w-10 h-10 cursor-pointer hover:opacity-80 transition-opacity">
-                  <AvatarImage src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&q=80" alt="Profile" />
-                  <AvatarFallback>U</AvatarFallback>
-                </Avatar>
-              </Link>
+            <div className="flex flex-col items-center">
+              <span className="text-xs text-muted-foreground">In Bets</span>
+              <span className="text-sm sm:text-base font-bold text-foreground">$0</span>
             </div>
-          )}
+            <Link href="/profile">
+              <Avatar className="w-10 h-10 cursor-pointer hover:opacity-80 transition-opacity">
+                <AvatarImage src={userProfile?.avatar_url || undefined} alt={userProfile?.pseudonym || 'Profile'} />
+                <AvatarFallback>{userProfile?.pseudonym?.[0]?.toUpperCase() || 'U'}</AvatarFallback>
+              </Avatar>
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -316,8 +574,8 @@ export default function Homepage() {
             ref={scrollContainerRef}
             className="flex gap-6 overflow-x-auto py-4 scrollbar-hide snap-x snap-mandatory"
           >
-            {rooms.map((room, index) => {
-              const isPersonalRoom = room.id === 0 || room.isPersonal;
+            {supabaseRooms.map((room, index) => {
+              const isMyRoom = room.id === 'my-room';
               return (
                 <button
                   key={room.id}
@@ -325,7 +583,7 @@ export default function Homepage() {
                   onClick={() => handleRoomSelect(room.id)}
                   className={`flex items-center gap-3 min-w-fit snap-start group transition-all rounded-full px-4 py-2 ${
                     selectedRoomId === room.id
-                      ? isPersonalRoom
+                      ? isMyRoom
                         ? 'opacity-100 bg-gradient-to-br from-yellow-500/40 to-amber-600/40 border border-yellow-500/60'
                         : 'opacity-100 bg-red-900/30 border border-red-800/50'
                       : 'opacity-60 hover:opacity-80 border border-transparent'
@@ -336,9 +594,9 @@ export default function Homepage() {
                     {room.members.map((member, idx) => (
                       <Avatar 
                         key={idx} 
-                        className={`w-10 h-10 ${isPersonalRoom && selectedRoomId === room.id ? 'ring-2 ring-yellow-500/50' : ''}`}
+                        className={`w-10 h-10 ${isMyRoom && selectedRoomId === room.id ? 'ring-2 ring-yellow-500/50' : ''}`}
                       >
-                        <AvatarImage src={member.image} alt={member.name} />
+                        <AvatarImage src={member.image || undefined} alt={member.name} />
                         <AvatarFallback className="text-xs">{member.name[0]}</AvatarFallback>
                       </Avatar>
                     ))}
@@ -346,7 +604,7 @@ export default function Homepage() {
                   {/* Room Name */}
                   <span className={`text-sm font-medium whitespace-nowrap transition-colors ${
                     selectedRoomId === room.id
-                      ? isPersonalRoom
+                      ? isMyRoom
                         ? 'text-yellow-300'
                         : 'text-red-300'
                       : 'text-muted-foreground group-hover:text-foreground'
@@ -385,16 +643,9 @@ export default function Homepage() {
             transition: isSwiping ? 'none' : 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
           }}
         >
-          {rooms.map((room, index) => {
-            // Filter bets for this specific room
-            const roomBets = room.id === 0
-              ? bets.filter(bet => {
-                  const betId = `bet_${bet.id}`;
-                  return dbData.trades.some(
-                    trade => trade.betId === betId && trade.userId === 'user_1'
-                  );
-                })
-              : bets.filter(bet => bet.roomId === room.id);
+          {supabaseRooms.map((room, index) => {
+            // Filter bets for this room
+            const roomBets = supabaseBets.filter(bet => bet.roomId === room.id);
 
             // Calculate scale and opacity for peek effect
             const isCurrentRoom = room.id === selectedRoomId;
@@ -431,14 +682,18 @@ export default function Homepage() {
                     roomBets.map((bet) => (
                       <Bet
                         key={bet.id}
-                        id={bet.id}
-                        roomId={bet.roomId}
+                        id={parseInt(bet.id.replace(/\D/g, '')) || 0}
+                        roomId={bet.roomId === 'my-room' ? 0 : parseInt(bet.roomId?.replace(/\D/g, '') || '1') || 1}
                         title={bet.title}
-                        imageUrl={bet.imageUrl}
-                        amountAtStake={bet.amountAtStake}
-                        participants={bet.participants}
-                        percentage={bet.percentage}
-                        expirationDate={bet.expirationDate}
+                        imageUrl={bet.image_url}
+                        amountAtStake={0} // TODO: Calculate from trades table
+                        participants={bet.participants.map(p => ({
+                          name: p.pseudonym,
+                          image: p.avatar_url || '',
+                          isAdmin: p.is_admin
+                        }))}
+                        percentage={50} // TODO: Calculate from trades table
+                        expirationDate={bet.resolved_at || bet.created_at}
                         onTriggerAnimation={triggerBetAnimation}
                       />
                     ))
@@ -456,13 +711,18 @@ export default function Homepage() {
       </main>
 
       {/* Add Room Dialog */}
-      <AddRoom open={isAddRoomOpen} onOpenChange={setIsAddRoomOpen} />
+      <AddRoom 
+        open={isAddRoomOpen} 
+        onOpenChange={setIsAddRoomOpen}
+        onRoomCreated={refreshData}
+      />
       
       {/* Create Bet Dialog */}
       <CreateBet 
         open={isCreateBetOpen} 
         onOpenChange={setIsCreateBetOpen}
         onTriggerAnimation={triggerBetAnimation}
+        onBetCreated={refreshData}
       />
 
       {/* Bet Proposal Animation */}

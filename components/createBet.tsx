@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Upload, ChevronDown, ChevronRight, Check, Crown } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
+import { useSupabase } from '@/lib/hooks/supabase';
 import dbData from '@/backend/db.json';
 
 interface CreateBetProps {
@@ -27,9 +28,10 @@ interface CreateBetProps {
     userImage: string;
     userName: string;
   }) => void;
+  onBetCreated?: () => void;
 }
 
-export default function CreateBet({ open, onOpenChange, onTriggerAnimation }: CreateBetProps) {
+export default function CreateBet({ open, onOpenChange, onTriggerAnimation, onBetCreated }: CreateBetProps) {
   const [betName, setBetName] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [expirationDate, setExpirationDate] = useState('');
@@ -47,6 +49,106 @@ export default function CreateBet({ open, onOpenChange, onTriggerAnimation }: Cr
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Supabase data
+  const { supabase } = useSupabase();
+  const [supabaseProfiles, setSupabaseProfiles] = useState<Array<{
+    id: string;
+    pseudonym: string;
+    avatar_url: string | null;
+  }>>([]);
+  const [supabaseRooms, setSupabaseRooms] = useState<Array<{
+    id: string;
+    name: string;
+    members: Array<{
+      id: string;
+      pseudonym: string;
+      avatar_url: string | null;
+    }>;
+  }>>([]);
+  const [currentUser, setCurrentUser] = useState<{ id: string; pseudonym: string; avatar_url: string | null } | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+
+  // Fetch data from Supabase
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // Get current user profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id, pseudonym, avatar_url')
+          .eq('id', user.id)
+          .single();
+        
+        if (profile) {
+          setCurrentUser(profile);
+        }
+
+        // Get all profiles (participants)
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, pseudonym, avatar_url')
+          .neq('id', user.id); // Exclude current user
+        
+        if (profiles) {
+          setSupabaseProfiles(profiles);
+        }
+
+        // Get rooms where user is a member
+        const { data: roomMemberships } = await supabase
+          .from('room_members')
+          .select(`
+            room_id,
+            rooms (
+              id,
+              name
+            )
+          `)
+          .eq('user_id', user.id);
+
+        if (roomMemberships) {
+          // For each room, get all members with their profiles
+          const roomsWithMembers = await Promise.all(
+            roomMemberships.map(async (membership: any) => {
+              const room = membership.rooms;
+              
+              // Get all members of this room
+              const { data: members } = await supabase
+                .from('room_members')
+                .select(`
+                  user_id,
+                  profiles (
+                    id,
+                    pseudonym,
+                    avatar_url
+                  )
+                `)
+                .eq('room_id', room.id);
+
+              return {
+                id: room.id,
+                name: room.name,
+                members: members?.map((m: any) => ({
+                  id: m.user_id,
+                  pseudonym: m.profiles?.pseudonym || 'Unknown',
+                  avatar_url: m.profiles?.avatar_url || null,
+                })) || [],
+              };
+            })
+          );
+
+          setSupabaseRooms(roomsWithMembers);
+        }
+      } catch (err) {
+        console.error('Error fetching data:', err);
+      }
+    };
+
+    fetchData();
+  }, [supabase]);
+
   // Automatically open Rooms when popover opens
   useEffect(() => {
     if (isParticipantsOpen) {
@@ -55,54 +157,34 @@ export default function CreateBet({ open, onOpenChange, onTriggerAnimation }: Cr
     }
   }, [isParticipantsOpen]);
 
-  // Reconstruct rooms from user data
-  const reconstructRooms = () => {
-    const roomsMap = new Map<string, { id: string; name: string; members: string[] }>();
-    
-    dbData.users.forEach(user => {
-      if (user.rooms && Array.isArray(user.rooms)) {
-        user.rooms.forEach((room: { id: string; name: string }) => {
-          if (!roomsMap.has(room.id)) {
-            roomsMap.set(room.id, {
-              id: room.id,
-              name: room.name,
-              members: []
-            });
-          }
-          roomsMap.get(room.id)!.members.push(user.id);
-        });
-      }
-    });
-    
-    return Array.from(roomsMap.values());
-  };
-  
-  const allRooms = reconstructRooms();
-  
-  // Get all rooms except "My Room" (room_0)
-  const availableRooms = allRooms.filter(room => room.id !== 'room_0');
-  
-  // Get all participants except current user (user_1)
-  const availableParticipants = dbData.users.filter(user => user.id !== 'user_1');
+  // Reset loading state when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setIsCreating(false);
+    }
+  }, [open]);
+
+  // Use Supabase data instead of dbData
+  const availableRooms = supabaseRooms;
+  const availableParticipants = supabaseProfiles;
   
   // Filter rooms by search query (searches in room name and member names)
   const filteredRooms = availableRooms.filter(room => {
     const roomNameMatch = room.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const memberNamesMatch = room.members.some(memberId => {
-      const user = dbData.users.find(u => u.id === memberId);
-      return user && user.name.toLowerCase().includes(searchQuery.toLowerCase());
-    });
+    const memberNamesMatch = room.members.some(member => 
+      member.pseudonym.toLowerCase().includes(searchQuery.toLowerCase())
+    );
     return roomNameMatch || memberNamesMatch;
   });
   
   // Filter participants by search query
   const filteredParticipants = availableParticipants.filter(user =>
-    user.name.toLowerCase().includes(searchQuery.toLowerCase())
+    user.pseudonym.toLowerCase().includes(searchQuery.toLowerCase())
   );
   
   // Toggle room selection and its members
   const toggleRoom = (roomId: string) => {
-    const room = allRooms.find(r => r.id === roomId);
+    const room = availableRooms.find(r => r.id === roomId);
     if (!room) return;
     
     const isCurrentlySelected = selectedRooms.includes(roomId);
@@ -111,12 +193,12 @@ export default function CreateBet({ open, onOpenChange, onTriggerAnimation }: Cr
       // Deselect room and remove its members from selectedParticipants
       setSelectedRooms(prev => prev.filter(id => id !== roomId));
       setSelectedParticipants(prev => 
-        prev.filter(userId => !room.members.includes(userId) || userId === 'user_1')
+        prev.filter(userId => !room.members.some(member => member.id === userId))
       );
     } else {
       // Select room and add its members to selectedParticipants
       setSelectedRooms(prev => [roomId, ...prev]);
-      const newMembers = room.members.filter(id => id !== 'user_1');
+      const newMembers = room.members.map(member => member.id);
       setSelectedParticipants(prev => {
         const uniqueMembers = [...new Set([...newMembers, ...prev])];
         return uniqueMembers;
@@ -154,8 +236,8 @@ export default function CreateBet({ open, onOpenChange, onTriggerAnimation }: Cr
       // State 3 -> State 1: Selected with crown -> Not selected
       // Check if this user is part of any selected room
       const roomsWithUser = selectedRooms.filter(roomId => {
-        const room = allRooms.find(r => r.id === roomId);
-        return room && room.members.includes(userId);
+        const room = availableRooms.find(r => r.id === roomId);
+        return room && room.members.some(member => member.id === userId);
       });
       
       // Deselect those rooms but keep all other participants
@@ -172,10 +254,10 @@ export default function CreateBet({ open, onOpenChange, onTriggerAnimation }: Cr
   // Get all selected members (from rooms and individuals)
   const getAllSelectedMembers = () => {
     const roomMembers = selectedRooms.flatMap(roomId => {
-      const room = allRooms.find(r => r.id === roomId);
-      return room ? room.members : [];
+      const room = availableRooms.find(r => r.id === roomId);
+      return room ? room.members.map(member => member.id) : [];
     });
-    return [...new Set([...roomMembers, ...selectedParticipants])].filter(id => id !== 'user_1');
+    return [...new Set([...roomMembers, ...selectedParticipants])];
   };
   
   const allSelectedMembers = getAllSelectedMembers();
@@ -241,52 +323,136 @@ export default function CreateBet({ open, onOpenChange, onTriggerAnimation }: Cr
     }
   };
 
-  const handleCreateBet = () => {
-    console.log('Creating bet:', {
-      betName,
-      imageUrl,
-      expirationDate,
-      amount,
-      initialChoice,
-      initialPercentage,
-      selectedRooms,
-      selectedParticipants,
-      crownedParticipants,
-      allSelectedMembers,
-    });
-    
-    // Close dialog first
-    onOpenChange(false);
-    
-    // Clean up blob URL if it exists
-    if (imageUrl.startsWith('blob:')) {
-      URL.revokeObjectURL(imageUrl);
+  const handleCreateBet = async () => {
+    if (!currentUser) {
+      console.error('No current user found');
+      return;
     }
-    
-    // Trigger animation after brief delay
-    setTimeout(() => {
-      onTriggerAnimation({
-        choice: initialChoice,
-        percentage: initialPercentage,
-        amount: amount,
-        userImage: dbData.users[0].profileImage,
-        userName: 'You',
-      });
-    }, 100);
-    
-    // Reset form
-    setBetName('');
-    setImageUrl('');
-    setExpirationDate('');
-    setAmount('');
-    setInitialChoice('yes');
-    setInitialPercentage(50);
-    setSelectedParticipants([]);
-    setCrownedParticipants([]);
-    setSelectedRooms([]);
-    setSearchQuery('');
-    setShowRooms(false);
-    setShowIndividualUsers(false);
+
+    if (isCreating) {
+      return; // Prevent multiple clicks
+    }
+
+    setIsCreating(true);
+
+    try {
+      let finalImageUrl = imageUrl;
+      
+      // If image is a blob URL, upload it to R2
+      if (imageUrl.startsWith('blob:')) {
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        const arrayBuffer = await blob.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        
+        // Generate filename with user's pseudonym
+        const fileExtension = blob.type.split('/')[1] || 'jpg';
+        const timestamp = Date.now();
+        const sanitizedPseudonym = currentUser.pseudonym.replace(/[^a-zA-Z0-9]/g, '');
+        const fileName = `bets/${sanitizedPseudonym}-${timestamp}.${fileExtension}`;
+        
+        // Upload to R2
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: (() => {
+            const formData = new FormData();
+            formData.append('file', new File([buffer], fileName, { type: blob.type }));
+            formData.append('pseudonym', currentUser.pseudonym);
+            formData.append('fileType', 'bet');
+            return formData;
+          })(),
+        });
+        
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to upload image');
+        }
+        
+        const { url } = await uploadResponse.json();
+        finalImageUrl = url;
+        
+        // Clean up blob URL
+        URL.revokeObjectURL(imageUrl);
+      }
+
+      // Save bet to Supabase
+      const { data: betData, error: betError } = await supabase
+        .from('bets')
+        .insert({
+          created_by: currentUser.id,
+          title: betName,
+          image_url: finalImageUrl,
+          is_resolved: false,
+          resolved_at: expirationDate ? new Date(expirationDate).toISOString() : null,
+        })
+        .select()
+        .single();
+
+      if (betError) {
+        throw betError;
+      }
+
+      console.log('Bet created successfully:', betData);
+
+      // Save participants to bet_participants table
+      // Always include the bet creator as an admin, but avoid duplicates
+      const allParticipants = [...new Set([currentUser.id, ...allSelectedMembers])];
+      const participantsData = allParticipants.map(userId => ({
+        bet_id: betData.id,
+        user_id: userId,
+        is_admin: userId === currentUser.id || crownedParticipants.includes(userId),
+        joined_at: new Date().toISOString(),
+      }));
+
+      const { error: participantsError } = await supabase
+        .from('bet_participants')
+        .insert(participantsData);
+
+      if (participantsError) {
+        console.error('Error saving participants:', participantsError);
+        // Note: We don't throw here as the bet was already created successfully
+      } else {
+        console.log('Participants saved successfully:', participantsData);
+      }
+      
+      // Close dialog first
+      onOpenChange(false);
+      
+      // Trigger refresh of homepage data
+      if (onBetCreated) {
+        onBetCreated();
+      }
+      
+      // Trigger animation after brief delay
+      setTimeout(() => {
+        onTriggerAnimation({
+          choice: initialChoice,
+          percentage: initialPercentage,
+          amount: amount,
+          userImage: currentUser.avatar_url || '',
+          userName: currentUser.pseudonym,
+        });
+      }, 100);
+      
+      // Reset form
+      setBetName('');
+      setImageUrl('');
+      setExpirationDate('');
+      setAmount('');
+      setInitialChoice('yes');
+      setInitialPercentage(50);
+      setSelectedParticipants([]);
+      setCrownedParticipants([]);
+      setSelectedRooms([]);
+      setSearchQuery('');
+      setShowRooms(false);
+      setShowIndividualUsers(false);
+      
+    } catch (error) {
+      console.error('Error creating bet:', error);
+      // You might want to show an error message to the user here
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const isComplete = betName && imageUrl && expirationDate && amount && initialPercentage >= 0 && initialPercentage <= 100 && allSelectedMembers.length > 0;
@@ -369,8 +535,8 @@ export default function CreateBet({ open, onOpenChange, onTriggerAnimation }: Cr
                       style={{ left: `${initialChoice === 'no' ? (100 - initialPercentage) : initialPercentage}%` }}
                     >
                       <Avatar className={`w-6 h-6 border-2 ${initialChoice === 'yes' ? 'border-green-500' : 'border-red-500'}`}>
-                        <AvatarImage src={dbData.users[0].profileImage} alt="You" />
-                        <AvatarFallback className="text-[10px]">Y</AvatarFallback>
+                        <AvatarImage src={currentUser?.avatar_url || undefined} alt="You" />
+                        <AvatarFallback className="text-[10px]">{currentUser?.pseudonym?.[0] || 'Y'}</AvatarFallback>
                       </Avatar>
                     </div>
                     
@@ -511,13 +677,13 @@ export default function CreateBet({ open, onOpenChange, onTriggerAnimation }: Cr
                       <div className="flex items-center gap-1">
                         <div className="flex -space-x-2">
                           {allSelectedMembers.slice(0, 3).map((userId, index) => {
-                            const user = dbData.users.find(u => u.id === userId);
+                            const user = availableParticipants.find(u => u.id === userId);
                             const isCrowned = crownedParticipants.includes(userId);
                             return user ? (
                               <div key={userId} className="relative" style={{ zIndex: 3 - index }}>
                                 <Avatar className="w-6 h-6 ring-2 ring-background">
-                                  <AvatarImage src={user.profileImage} alt={user.name} />
-                                  <AvatarFallback className="text-[10px]">{user.name[0]}</AvatarFallback>
+                                  <AvatarImage src={user.avatar_url || undefined} alt={user.pseudonym} />
+                                  <AvatarFallback className="text-[10px]">{user.pseudonym[0]}</AvatarFallback>
                                 </Avatar>
                                 {isCrowned && (
                                   <Crown className="absolute -top-1 -right-1 h-3 w-3 text-red-500 fill-red-500" />
@@ -585,9 +751,6 @@ export default function CreateBet({ open, onOpenChange, onTriggerAnimation }: Cr
                           ) : (
                             filteredRooms.map((room) => {
                             const isSelected = selectedRooms.includes(room.id);
-                            const roomUsers = room.members.map(memberId => 
-                              dbData.users.find(u => u.id === memberId)
-                            ).filter(Boolean);
                             
                             return (
                               <button
@@ -597,13 +760,11 @@ export default function CreateBet({ open, onOpenChange, onTriggerAnimation }: Cr
                                 className={`w-full flex items-center gap-2 px-3 py-1.5 hover:bg-accent transition-colors ${isSelected ? 'bg-accent/50' : ''}`}
                               >
                                 <div className="flex -space-x-2 flex-shrink-0">
-                                  {roomUsers.slice(0, 3).map((user) => (
-                                    user && (
-                                      <Avatar key={user.id} className="w-6 h-6">
-                                        <AvatarImage src={user.profileImage} alt={user.name} />
-                                        <AvatarFallback className="text-[10px]">{user.name[0]}</AvatarFallback>
-                                      </Avatar>
-                                    )
+                                  {room.members.slice(0, 3).map((member) => (
+                                    <Avatar key={member.id} className="w-6 h-6">
+                                      <AvatarImage src={member.avatar_url || undefined} alt={member.pseudonym} />
+                                      <AvatarFallback className="text-[10px]">{member.pseudonym[0]}</AvatarFallback>
+                                    </Avatar>
                                   ))}
                                 </div>
                                 <span className="flex-1 text-left text-sm">{room.name}</span>
@@ -658,10 +819,10 @@ export default function CreateBet({ open, onOpenChange, onTriggerAnimation }: Cr
                                   className={`w-full flex items-center gap-2 px-3 py-1.5 hover:bg-accent transition-colors ${isSelected ? 'bg-accent/50' : ''}`}
                                 >
                                   <Avatar className="w-6 h-6 flex-shrink-0">
-                                    <AvatarImage src={user.profileImage} alt={user.name} />
-                                    <AvatarFallback className="text-[10px]">{user.name[0]}</AvatarFallback>
+                                    <AvatarImage src={user.avatar_url || undefined} alt={user.pseudonym} />
+                                    <AvatarFallback className="text-[10px]">{user.pseudonym[0]}</AvatarFallback>
                                   </Avatar>
-                                  <span className="flex-1 text-left text-sm">{user.name}</span>
+                                  <span className="flex-1 text-left text-sm">{user.pseudonym}</span>
                                   {isSelected && (
                                     isCrowned ? (
                                       <Crown className="h-4 w-4 text-red-500 flex-shrink-0" />
@@ -687,9 +848,17 @@ export default function CreateBet({ open, onOpenChange, onTriggerAnimation }: Cr
           <Button
             type="submit"
             onClick={handleCreateBet}
-            disabled={!isComplete}
+            disabled={!isComplete || isCreating}
+            className="min-w-[120px]"
           >
-            Create Bet
+            {isCreating ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                Creating...
+              </div>
+            ) : (
+              'Create Bet'
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

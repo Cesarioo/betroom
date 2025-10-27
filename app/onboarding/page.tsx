@@ -3,10 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Slider } from '@/components/ui/slider';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { ArrowRight, ArrowLeft, Check, Crown, Users, Plus, Target, Upload } from 'lucide-react';
 import Link from 'next/link';
 import OnboardingSlider from '@/components/onboarding/onboardingSlider';
@@ -15,8 +12,10 @@ import OnboardingBetCard from '@/components/onboarding/onboardingBetCard';
 import OnboardingAddRoom from '@/components/onboarding/onboardingAddRoom';
 import OnboardingBetDialog from '@/components/onboarding/onboardingBetDialog';
 import dbData from '@/backend/db.json';
+import { useSupabase } from '@/lib/hooks/supabase';
 
 export default function OnboardingPage() {
+  const { supabase } = useSupabase();
   const [currentStep, setCurrentStep] = useState(0);
   const [sliderValue, setSliderValue] = useState([50]);
   const [selectedChoice, setSelectedChoice] = useState<'yes' | 'no' | null>(null);
@@ -33,6 +32,8 @@ export default function OnboardingPage() {
   const [placeBetCompleted, setPlaceBetCompleted] = useState(false);
   const [pseudonym, setPseudonym] = useState('');
   const [profileImage, setProfileImage] = useState('');
+  const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
+  const [isUploadingProfile, setIsUploadingProfile] = useState(false);
   const [createdBetData, setCreatedBetData] = useState<{
     choice: 'yes' | 'no';
     percentage: number;
@@ -124,20 +125,27 @@ export default function OnboardingPage() {
                     if (file) {
                       const url = URL.createObjectURL(file);
                       setProfileImage(url);
+                      setProfileImageFile(file);
                     }
                   };
                   input.click();
                 }}
-                className="relative w-20 h-20 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 transition-colors overflow-hidden group flex-shrink-0"
+                disabled={isUploadingProfile}
+                className="relative w-20 h-20 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 transition-colors overflow-hidden group flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {profileImage ? (
                   <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
                   <Upload className="w-6 h-6 text-muted-foreground" />
                 )}
-                {profileImage && (
+                {profileImage && !isUploadingProfile && (
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <Upload className="w-6 h-6 text-white" />
+                  </div>
+                )}
+                {isUploadingProfile && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   </div>
                 )}
               </button>
@@ -149,17 +157,79 @@ export default function OnboardingPage() {
                 value={pseudonym}
                 onChange={(e) => setPseudonym(e.target.value)}
                 className="flex-1"
+                disabled={isUploadingProfile}
               />
             </div>
             
             <div className="flex justify-end">
               <Button
-                onClick={() => setCurrentStep(currentStep + 1)}
-                disabled={!pseudonym.trim()}
+                onClick={async () => {
+                  setIsUploadingProfile(true);
+                  
+                  try {
+                    // Get current user
+                    const { data: { user } } = await supabase.auth.getUser();
+                    
+                    if (!user) {
+                      throw new Error('No user found');
+                    }
+
+                    let uploadedImageUrl = '';
+
+                    // Upload profile image to R2 if provided
+                    if (profileImageFile) {
+                      const formData = new FormData();
+                      formData.append('file', profileImageFile);
+                      formData.append('pseudonym', pseudonym);
+                      
+                      const response = await fetch('/api/upload', {
+                        method: 'POST',
+                        body: formData,
+                      });
+                      
+                      if (!response.ok) {
+                        throw new Error('Failed to upload image');
+                      }
+                      
+                      const data = await response.json();
+                      uploadedImageUrl = data.url;
+                    }
+
+                    // Update user profile in Supabase
+                    const { error } = await supabase
+                      .from('profiles')
+                      .update({
+                        pseudonym: pseudonym,
+                        avatar_url: uploadedImageUrl || null,
+                        updated_at: new Date().toISOString(),
+                      })
+                      .eq('id', user.id);
+
+                    if (error) throw error;
+
+                    // Proceed to next step
+                    setCurrentStep(currentStep + 1);
+                  } catch (err: any) {
+                    console.error('Error saving profile:', err);
+                    alert(err.message || 'Failed to save profile');
+                  } finally {
+                    setIsUploadingProfile(false);
+                  }
+                }}
+                disabled={!pseudonym.trim() || isUploadingProfile}
                 className="flex items-center gap-2"
               >
-                Next
-                <ArrowRight className="w-4 h-4" />
+                {isUploadingProfile ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    Next
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </Button>
             </div>
           </div>

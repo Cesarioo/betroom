@@ -7,50 +7,170 @@ import Image from 'next/image';
 import { useState, useRef, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import AddMoney from './addMoney';
+import { useSupabase } from '@/lib/hooks/supabase';
+import { useRouter } from 'next/navigation';
 
 export default function ProfilePage() {
   const [showBetHistory, setShowBetHistory] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isAddMoneyOpen, setIsAddMoneyOpen] = useState(false);
   const [moneyMode, setMoneyMode] = useState<'add' | 'withdraw'>('add');
+  const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Mock user data
+  // Supabase integration
+  const { supabase } = useSupabase();
+  const router = useRouter();
+  
+  // User data from Supabase
+  const [userProfile, setUserProfile] = useState<{
+    pseudonym: string;
+    avatar_url: string | null;
+    email: string;
+  } | null>(null);
+  
+  // Mock financial data (placeholder until we implement user_balances table)
   const userCash = 1250;
   const userInBets = 450;
-  const [userName, setUserName] = useState("Alex Johnson");
-  const [userEmail, setUserEmail] = useState("alex.johnson@email.com");
-  const [tempName, setTempName] = useState(userName);
-  const [tempEmail, setTempEmail] = useState(userEmail);
-  const [profileImage, setProfileImage] = useState("https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&q=80");
-  const [tempProfileImage, setTempProfileImage] = useState(profileImage);
+  
+  // Editing state
+  const [tempPseudonym, setTempPseudonym] = useState('');
+  const [tempProfileImage, setTempProfileImage] = useState('');
   const memberSince = "January 2024";
 
-  const handleEditClick = () => {
+  // Fetch user profile data
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('pseudonym, avatar_url')
+            .eq('id', user.id)
+            .single();
+          
+          if (!error && profile) {
+            setUserProfile({
+              pseudonym: profile.pseudonym,
+              avatar_url: profile.avatar_url,
+              email: user.email || '',
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user profile:', err);
+      }
+    };
+
+    fetchUserProfile();
+  }, [supabase]);
+
+  const handleEditClick = async () => {
     if (isEditing) {
       // Save changes
-      setUserName(tempName);
-      setUserEmail(tempEmail);
-      setProfileImage(tempProfileImage);
-      setIsEditing(false);
+      if (!userProfile) return;
+      
+      setIsSaving(true);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        let finalImageUrl = tempProfileImage;
+        
+        // If image is a blob URL, upload it to R2
+        if (tempProfileImage.startsWith('blob:')) {
+          const response = await fetch(tempProfileImage);
+          const blob = await response.blob();
+          const arrayBuffer = await blob.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          
+          // Generate filename with user's pseudonym
+          const fileExtension = blob.type.split('/')[1] || 'jpg';
+          const timestamp = Date.now();
+          const sanitizedPseudonym = tempPseudonym.replace(/[^a-zA-Z0-9]/g, '');
+          const fileName = `profiles/${sanitizedPseudonym}-${timestamp}.${fileExtension}`;
+          
+          // Upload to R2
+          const uploadResponse = await fetch('/api/upload', {
+            method: 'POST',
+            body: (() => {
+              const formData = new FormData();
+              formData.append('file', new File([buffer], fileName, { type: blob.type }));
+              formData.append('pseudonym', tempPseudonym);
+              formData.append('fileType', 'profile');
+              return formData;
+            })(),
+          });
+          
+          if (!uploadResponse.ok) {
+            throw new Error('Failed to upload image');
+          }
+          
+          const { url } = await uploadResponse.json();
+          finalImageUrl = url;
+          
+          // Clean up blob URL
+          URL.revokeObjectURL(tempProfileImage);
+        }
+
+        // Update profile in Supabase
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            pseudonym: tempPseudonym,
+            avatar_url: finalImageUrl,
+          })
+          .eq('id', user.id);
+
+        if (error) {
+          throw error;
+        }
+
+        // Update local state
+        setUserProfile({
+          pseudonym: tempPseudonym,
+          avatar_url: finalImageUrl,
+          email: userProfile.email,
+        });
+        
+        setIsEditing(false);
+      } catch (error) {
+        console.error('Error saving profile:', error);
+        // You might want to show an error message to the user here
+      } finally {
+        setIsSaving(false);
+      }
     } else {
       // Start editing
-      setTempName(userName);
-      setTempEmail(userEmail);
-      setTempProfileImage(profileImage);
-      setIsEditing(true);
+      if (userProfile) {
+        setTempPseudonym(userProfile.pseudonym);
+        setTempProfileImage(userProfile.avatar_url || '');
+        setIsEditing(true);
+      }
     }
   };
 
   const handleCancelEdit = () => {
-    setTempName(userName);
-    setTempEmail(userEmail);
-    // Clean up blob URL if it exists and we're canceling
-    if (tempProfileImage.startsWith('blob:')) {
-      URL.revokeObjectURL(tempProfileImage);
+    if (userProfile) {
+      setTempPseudonym(userProfile.pseudonym);
+      // Clean up blob URL if it exists and we're canceling
+      if (tempProfileImage.startsWith('blob:')) {
+        URL.revokeObjectURL(tempProfileImage);
+      }
+      setTempProfileImage(userProfile.avatar_url || '');
+      setIsEditing(false);
     }
-    setTempProfileImage(profileImage);
-    setIsEditing(false);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      router.push('/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
 
   const handleImageClick = () => {
@@ -77,11 +197,8 @@ export default function ProfilePage() {
       if (tempProfileImage.startsWith('blob:')) {
         URL.revokeObjectURL(tempProfileImage);
       }
-      if (profileImage.startsWith('blob:')) {
-        URL.revokeObjectURL(profileImage);
-      }
     };
-  }, [tempProfileImage, profileImage]);
+  }, [tempProfileImage]);
 
   // Mock portfolio value data (last 7 months) - cumulative, always positive
   const portfolioData = [
@@ -170,8 +287,13 @@ export default function ProfilePage() {
         <div className="flex items-center gap-4 mb-8">
           <div className="relative w-20 h-20 flex-shrink-0">
             <Avatar className="w-20 h-20">
-              <AvatarImage src={isEditing ? tempProfileImage : profileImage} alt="Profile" />
-              <AvatarFallback className="text-2xl">U</AvatarFallback>
+              <AvatarImage 
+                src={isEditing ? tempProfileImage : (userProfile?.avatar_url || '')} 
+                alt="Profile" 
+              />
+              <AvatarFallback className="text-2xl">
+                {userProfile?.pseudonym?.[0] || 'U'}
+              </AvatarFallback>
             </Avatar>
             {isEditing && (
               <button
@@ -193,25 +315,25 @@ export default function ProfilePage() {
           <div className="flex-1">
             {!isEditing ? (
               <>
-                <h2 className="text-xl font-bold text-foreground mb-1">{userName}</h2>
-                <p className="text-sm text-muted-foreground">{userEmail}</p>
+                <h2 className="text-xl font-bold text-foreground mb-1">
+                  {userProfile?.pseudonym || 'Loading...'}
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  {userProfile?.email || 'Loading...'}
+                </p>
               </>
             ) : (
               <>
                 <input
                   type="text"
-                  value={tempName}
-                  onChange={(e) => setTempName(e.target.value)}
+                  value={tempPseudonym}
+                  onChange={(e) => setTempPseudonym(e.target.value)}
                   className="text-xl font-bold text-foreground mb-1 bg-background border border-border rounded px-2 py-1 w-full focus:outline-none focus:border-primary"
-                  placeholder="Name"
+                  placeholder="Pseudonym"
                 />
-                <input
-                  type="email"
-                  value={tempEmail}
-                  onChange={(e) => setTempEmail(e.target.value)}
-                  className="text-sm text-muted-foreground bg-background border border-border rounded px-2 py-1 w-full focus:outline-none focus:border-primary"
-                  placeholder="Email"
-                />
+                <p className="text-sm text-muted-foreground">
+                  {userProfile?.email}
+                </p>
               </>
             )}
           </div>
@@ -220,27 +342,35 @@ export default function ProfilePage() {
               <>
                 <button 
                   onClick={handleEditClick}
-                  className="p-2 hover:bg-accent rounded-lg transition-colors"
+                  disabled={!userProfile}
+                  className="p-2 hover:bg-accent rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Pen className="w-5 h-5 text-muted-foreground hover:text-foreground" />
                 </button>
-                <Link href="/homepage">
-                  <button className="p-2 hover:bg-red-500/10 rounded-lg transition-colors">
-                    <LogOut className="w-5 h-5 text-red-500 hover:text-red-600" />
-                  </button>
-                </Link>
+                <button 
+                  onClick={handleLogout}
+                  className="p-2 hover:bg-red-500/10 rounded-lg transition-colors"
+                >
+                  <LogOut className="w-5 h-5 text-red-500 hover:text-red-600" />
+                </button>
               </>
             ) : (
               <>
                 <button 
                   onClick={handleEditClick}
-                  className="p-2 hover:bg-green-500/10 rounded-lg transition-colors"
+                  disabled={isSaving || !tempPseudonym.trim()}
+                  className="p-2 hover:bg-green-500/10 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Check className="w-5 h-5 text-green-500 hover:text-green-600" />
+                  {isSaving ? (
+                    <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Check className="w-5 h-5 text-green-500 hover:text-green-600" />
+                  )}
                 </button>
                 <button 
                   onClick={handleCancelEdit}
-                  className="p-2 hover:bg-red-500/10 rounded-lg transition-colors"
+                  disabled={isSaving}
+                  className="p-2 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <X className="w-5 h-5 text-red-500 hover:text-red-600" />
                 </button>

@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import Link from 'next/link';
+import { useSupabase } from '@/lib/hooks/supabase';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -13,17 +15,44 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isRegisterMode, setIsRegisterMode] = useState(true);
+  const [error, setError] = useState('');
+  const { supabase } = useSupabase();
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
     
-    // Simulate login/register process
-    setTimeout(() => {
+    try {
+      if (isRegisterMode) {
+        // Register new user
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+        
+        if (error) throw error;
+        
+        // Redirect to onboarding after successful registration
+        router.push('/onboarding');
+      } else {
+        // Sign in existing user
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        
+        if (error) throw error;
+        
+        // Redirect to homepage after successful login
+        router.push('/homepage');
+      }
+    } catch (err: any) {
+      setError(err.message || 'An error occurred');
+    } finally {
       setIsLoading(false);
-      // Redirect to onboarding after successful login/register
-      window.location.href = '/onboarding';
-    }, 1000);
+    }
   };
 
   return (
@@ -127,6 +156,12 @@ export default function LoginPage() {
                 </div>
               </div>
 
+              {/* Error Message */}
+              {error && (
+                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                  <p className="text-sm text-red-500">{error}</p>
+                </div>
+              )}
 
               {/* Login Buttons Row */}
               <div className="flex gap-3">
@@ -146,11 +181,12 @@ export default function LoginPage() {
                   )}
                 </Button>
 
-                {/* Google Button */}
+                {/* Google Button - Grayed out */}
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-12 w-12 p-0 border-border hover:bg-muted"
+                  disabled
+                  className="h-12 w-12 p-0 border-border opacity-40 cursor-not-allowed"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
