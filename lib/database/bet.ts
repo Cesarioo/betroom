@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useSupabase } from '@/lib/hooks/supabase';
 
 interface CreateBetData {
@@ -88,7 +88,7 @@ export function useCreateBet(): UseCreateBetResult {
       }
 
       // Save bet to Supabase
-      let betData: any;
+      let betData: { id: string } | null = null;
       try {
         const result = await supabase
           .from('bets')
@@ -106,7 +106,7 @@ export function useCreateBet(): UseCreateBetResult {
           throw result.error;
         }
         
-        betData = result.data;
+        betData = result.data as { id: string };
       } catch (betError) {
         console.error('Error creating bet:', betError);
         throw betError;
@@ -118,7 +118,7 @@ export function useCreateBet(): UseCreateBetResult {
       // Always include the bet creator as an admin, but avoid duplicates
       const allParticipants = [...new Set([data.currentUser.id, ...data.allSelectedMembers])];
       const participantsData = allParticipants.map(userId => ({
-        bet_id: betData.id,
+        bet_id: betData!.id,
         user_id: userId,
         is_admin: userId === data.currentUser.id || data.crownedParticipants.includes(userId),
         joined_at: new Date().toISOString(),
@@ -135,7 +135,7 @@ export function useCreateBet(): UseCreateBetResult {
         await supabase
           .from('bets')
           .delete()
-          .eq('id', betData.id);
+          .eq('id', betData!.id);
         
         throw participantsError;
       } else {
@@ -144,7 +144,7 @@ export function useCreateBet(): UseCreateBetResult {
 
       // Create the creator's initial trade
       const tradeData = {
-        bet_id: betData.id,
+        bet_id: betData!.id,
         user_id: data.currentUser.id,
         side: data.initialChoice, // 'yes' or 'no'
         price: data.initialPercentage, // The price (percentage) at which they're buying
@@ -253,7 +253,7 @@ export function useTakeBet(): UseTakeBetResult {
       }
 
       // Calculate total amount already taken from this maker
-      const totalTaken = existingTakers?.reduce((sum: number, t: any) => sum + t.amount, 0) || 0;
+      const totalTaken = (existingTakers as Array<{ amount: number }> | null)?.reduce((sum, t) => sum + t.amount, 0) || 0;
       
       // Calculate remaining available amount (maker's original amount minus total taken)
       const remainingAvailable = makerTrade.amount - totalTaken;

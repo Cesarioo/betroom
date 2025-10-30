@@ -18,6 +18,8 @@ import { useTakeBet, useCreateMakerTrade } from '@/lib/database/bet';
 import { useSupabase } from '@/lib/hooks/supabase';
 import { useUserMoney } from '@/lib/database/money';
 
+type MakerOrder = { id: string; price: number; amount: number };
+
 interface BetDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -26,7 +28,6 @@ interface BetDialogProps {
   percentage: number;
   betAmount: string;
   setBetAmount: (amount: string) => void;
-  onPlaceBet: () => void;
   currentUser: {
     name: string;
     profileImage: string;
@@ -35,7 +36,6 @@ interface BetDialogProps {
     name: string;
     profileImage: string;
   } | null;
-  maxAvailable: number;
   betId: string;
   onTriggerAnimation: (data: {
     choice: 'yes' | 'no';
@@ -45,8 +45,8 @@ interface BetDialogProps {
     userName: string;
   }) => void;
   initialMode?: 'take' | 'propose';
-  yesButtonOrders?: any[];
-  noButtonOrders?: any[];
+  yesButtonOrders?: MakerOrder[];
+  noButtonOrders?: MakerOrder[];
 }
 
 export default function BetDialog({
@@ -57,10 +57,8 @@ export default function BetDialog({
   percentage,
   betAmount,
   setBetAmount,
-  onPlaceBet,
   currentUser,
   opponentUser,
-  maxAvailable,
   betId,
   onTriggerAnimation,
   initialMode = 'take',
@@ -151,7 +149,7 @@ export default function BetDialog({
         setBetAmount(initialAmount.toString());
       }
     }
-  }, [isOpen, maxUserBet, remainingMakerLiquidity, setBetAmount]);
+  }, [isOpen, maxUserBetWhole, remainingMakerLiquidity, setBetAmount]);
 
   // Calculate opponent's amount based on odds (this will always be <= maxAvailable)
   const calculateOpponentAmount = () => {
@@ -188,7 +186,7 @@ export default function BetDialog({
           .eq('maker_trade_id', selectedMakerTrade.id);
 
         // Calculate total amount already taken by takers
-        const totalTaken = existingTakers?.reduce((sum: number, t: any) => sum + t.amount, 0) || 0;
+        const totalTaken = (existingTakers as Array<{ amount: number }> | null)?.reduce((sum, t) => sum + t.amount, 0) || 0;
         
         // Calculate how much of the maker's allocation is still available
         // Then convert that to how much the taker can bet at their side's price

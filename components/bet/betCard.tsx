@@ -16,6 +16,16 @@ interface Participant {
   image: string;
 }
 
+interface Trade {
+  id: string;
+  bet_id: string;
+  user_id: string;
+  side: 'yes' | 'no';
+  price: number;
+  amount: number;
+  maker_trade_id: string | null;
+}
+
 interface BetProps {
   id: string;
   roomId: number;
@@ -58,9 +68,8 @@ export default function Bet({
   const remainingCount = Math.max(0, participants.length - 3);
 
   // Supabase data state
-  const [betTrades, setBetTrades] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [betTrades, setBetTrades] = useState<Trade[]>([]);
+  const [currentUser, setCurrentUser] = useState<{ pseudonym: string; avatar_url: string | null } | null>(null);
   const [isUserAdmin, setIsUserAdmin] = useState(false);
   const [tradeUsers, setTradeUsers] = useState<Map<string, { pseudonym: string; avatar_url: string | null }>>(new Map());
   const [calculatedAmountAtStake, setCalculatedAmountAtStake] = useState(0);
@@ -79,7 +88,7 @@ export default function Bet({
           .eq('id', user.id)
           .single();
         
-        setCurrentUser(profile);
+        setCurrentUser(profile ? { pseudonym: profile.pseudonym, avatar_url: profile.avatar_url } : null);
 
         // Check if user is admin of this bet
         const { data: participant } = await supabase
@@ -97,14 +106,14 @@ export default function Bet({
           .select('*')
           .eq('bet_id', id);
 
-        setBetTrades(trades || []);
+        setBetTrades((trades as Trade[]) || []);
 
         // Calculate total stake from all trades
-        const totalStake = trades?.reduce((sum: number, t: any) => sum + t.amount, 0) || 0;
+        const totalStake = (trades as Trade[] | null)?.reduce((sum: number, t: Trade) => sum + t.amount, 0) || 0;
         setCalculatedAmountAtStake(totalStake);
 
         // Get unique user IDs from trades
-        const userIds = [...new Set(trades?.map((t: any) => t.user_id) || [])];
+        const userIds = [...new Set(((trades as Trade[] | null) || []).map((t) => t.user_id))];
         
         // Fetch user profiles for all traders
         if (userIds.length > 0) {
@@ -113,13 +122,11 @@ export default function Bet({
             .select('id, pseudonym, avatar_url')
             .in('id', userIds);
 
-          const usersMap = new Map(profiles?.map((p: any) => [p.id, { pseudonym: p.pseudonym, avatar_url: p.avatar_url }]) || []);
+          const usersMap = new Map((profiles as Array<{ id: string; pseudonym: string; avatar_url: string | null }> | null)?.map((p) => [p.id, { pseudonym: p.pseudonym, avatar_url: p.avatar_url }]) || []);
           setTradeUsers(usersMap);
         }
       } catch (error) {
         console.error('Error fetching bet data:', error);
-      } finally {
-        setIsLoading(false);
       }
     };
 
@@ -127,33 +134,32 @@ export default function Bet({
   }, [supabase, id]);
 
   // Identify makers (trades with maker_trade_id === null)
-  const makerTrades = betTrades.filter((t: any) => t.maker_trade_id === null);
-  const takerTrades = betTrades.filter((t: any) => t.maker_trade_id !== null);
+  const makerTrades = betTrades.filter((t) => t.maker_trade_id === null);
   
   // Group makers by side - makers on YES side show on NO button (opposite side)
   // and makers on NO side show on YES button (opposite side)
-  const yesButtonOrders = makerTrades.filter((t: any) => t.side === 'no'); // NO makers show on YES button
-  const noButtonOrders = makerTrades.filter((t: any) => t.side === 'yes'); // YES makers show on NO button
+  const yesButtonOrders = makerTrades.filter((t) => t.side === 'no'); // NO makers show on YES button
+  const noButtonOrders = makerTrades.filter((t) => t.side === 'yes'); // YES makers show on NO button
 
   // Calculate weighted mid price between YES and NO sides (only from makers)
   const calculateWeightedPercentage = () => {
     if (makerTrades.length === 0) return percentage; // fallback to prop if no makers
     
     // Get all YES and NO makers
-    const yesMakers = makerTrades.filter((t: any) => t.side === 'yes');
-    const noMakers = makerTrades.filter((t: any) => t.side === 'no');
+    const yesMakers = makerTrades.filter((t) => t.side === 'yes');
+    const noMakers = makerTrades.filter((t) => t.side === 'no');
     
     // Calculate total amounts for YES and NO sides
-    const yesTotal = yesMakers.reduce((sum: number, order: any) => sum + order.amount, 0);
-    const noTotal = noMakers.reduce((sum: number, order: any) => sum + order.amount, 0);
+    const yesTotal = yesMakers.reduce((sum: number, order: Trade) => sum + order.amount, 0);
+    const noTotal = noMakers.reduce((sum: number, order: Trade) => sum + order.amount, 0);
     const totalAmount = yesTotal + noTotal;
     
     if (totalAmount === 0) return percentage;
     
     // Calculate weighted price - YES makers use their price, NO makers use (100 - price)
-    const yesWeightedPrice = yesMakers.reduce((sum: number, order: any) => 
+    const yesWeightedPrice = yesMakers.reduce((sum: number, order: Trade) => 
       sum + (order.amount * order.price), 0);
-    const noWeightedPrice = noMakers.reduce((sum: number, order: any) => 
+    const noWeightedPrice = noMakers.reduce((sum: number, order: Trade) => 
       sum + (order.amount * (100 - order.price)), 0);
     
     return Math.round((yesWeightedPrice + noWeightedPrice) / totalAmount);
@@ -180,7 +186,7 @@ export default function Bet({
     } : null;
     
     // Calculate total available amount
-    const maxAvailable = orders.reduce((sum: number, order: any) => sum + order.amount, 0);
+    const maxAvailable = orders.reduce((sum: number, order: Trade) => sum + order.amount, 0);
     
     return { opponent, maxAvailable };
   };
@@ -371,9 +377,9 @@ export default function Bet({
               className={`flex-1 flex items-center justify-center gap-2 ${selectedAnswer === 'yes' ? 'bg-green-600 hover:bg-green-700 border-green-600' : ''}`}
             >
               <span>Yes</span>
-              {yesButtonOrders.length > 0 && (
+            {yesButtonOrders.length > 0 && (
                 <div className="flex -space-x-1.5">
-                  {yesButtonOrders.slice(0, 3).map((order: any) => {
+                  {yesButtonOrders.slice(0, 3).map((order: Trade) => {
                     const user = tradeUsers.get(order.user_id);
                     return user ? (
                       <Avatar key={order.id} className="w-4 h-4">
@@ -393,7 +399,7 @@ export default function Bet({
               <span>No</span>
               {noButtonOrders.length > 0 && (
                 <div className="flex -space-x-1.5">
-                  {noButtonOrders.slice(0, 3).map((order: any) => {
+                  {noButtonOrders.slice(0, 3).map((order: Trade) => {
                     const user = tradeUsers.get(order.user_id);
                     return user ? (
                       <Avatar key={order.id} className="w-4 h-4">
@@ -413,7 +419,7 @@ export default function Bet({
           {/* Stake */}
           <div className="flex flex-col justify-between gap-0.5">
             <span className="text-xs text-muted-foreground">Stake</span>
-            <span className="text-sm font-bold text-foreground">${Math.round(calculatedAmountAtStake)}</span>
+            <span className="text-sm font-bold text-foreground">${Math.round(calculatedAmountAtStake || amountAtStake)}</span>
           </div>
 
           {/* Expiration */}
@@ -475,7 +481,6 @@ export default function Bet({
         percentage={displayPercentage}
         betAmount={betAmount}
         setBetAmount={setBetAmount}
-        onPlaceBet={handlePlaceBet}
         currentUser={{
           name: currentUser?.pseudonym || 'You',
           profileImage: currentUser?.avatar_url || '',
@@ -487,7 +492,6 @@ export default function Bet({
             profileImage: opponent.profileImage,
           } : null;
         })()}
-        maxAvailable={getOpponentAndMax(betChoice).maxAvailable}
         betId={id}
         onTriggerAnimation={onTriggerAnimation}
         initialMode={initialDialogMode}

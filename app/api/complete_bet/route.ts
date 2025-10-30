@@ -72,14 +72,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const pending = (admins || []).some((a: any) => a.admin_decision === null || a.admin_decision === undefined);
+    type AdminRow = { user_id: string; admin_decision: boolean | null; is_admin: boolean };
+    const adminRows: AdminRow[] = (admins as AdminRow[]) || [];
+    const pending = adminRows.some((a) => a.admin_decision === null || a.admin_decision === undefined);
     if (pending) {
       return NextResponse.json({ success: true, pending: true });
     }
 
     // All decided; ensure unanimity
-    const first = admins && admins.length > 0 ? admins[0].admin_decision : null;
-    const unanimous = (admins || []).every((a: any) => a.admin_decision === first);
+    const first = adminRows.length > 0 ? adminRows[0].admin_decision : null;
+    const unanimous = adminRows.every((a) => a.admin_decision === first);
     if (!unanimous || first === null) {
       return NextResponse.json(
         { error: 'Admins decisions are not unanimous; cannot resolve' },
@@ -122,10 +124,11 @@ export async function POST(request: Request) {
     type Trade = { id: string; bet_id: string; user_id: string; side: 'yes' | 'no'; price: number; amount: number; maker_trade_id: string | null };
     const makers: Trade[] = (allTrades || []).filter(t => t.maker_trade_id === null) as Trade[];
     const takersByMaker = new Map<string, Trade[]>();
-    (allTrades || []).filter(t => t.maker_trade_id !== null).forEach((t: any) => {
-      const list = takersByMaker.get(t.maker_trade_id) || [];
-      list.push(t as Trade);
-      takersByMaker.set(t.maker_trade_id, list);
+    (allTrades || []).filter(t => t.maker_trade_id !== null).forEach((t) => {
+      const trade = t as Trade;
+      const list = takersByMaker.get(trade.maker_trade_id!) || [];
+      list.push(trade);
+      takersByMaker.set(trade.maker_trade_id!, list);
     });
 
     type Transfer = { from_user_id: string; to_user_id: string; amount: number; maker_trade_id: string };
@@ -144,7 +147,6 @@ export async function POST(request: Request) {
         const makerWins = (maker.side === 'yes' && outcomeYes) || (maker.side === 'no' && !outcomeYes);
         if (makerWins) {
           // Opposite side pays everything they provided
-          const totalOpp = takers.reduce((s, t) => s + t.amount, 0);
           for (const t of takers) {
             const share = t.amount; // all to maker
             if (share > 0) transfers.push({ from_user_id: t.user_id, to_user_id: maker.user_id, amount: share, maker_trade_id: maker.id });

@@ -4,81 +4,14 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Plus } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import AddRoom from '@/components/addRoom';
 import CreateBet from '@/components/createBet';
 import Bet from '@/components/bet/betCard';
 import BetAnimation from '@/components/bet/betAnimation';
-import dbData from '@/backend/db.json';
 import { useSupabase } from '@/lib/hooks/supabase';
 import { useUserMoney } from '@/lib/database/money';
 
-// Process data from database
-const processRoomsAndBets = () => {
-  const { users, bets, trades } = dbData;
-  
-  // Reconstruct rooms from user data
-  const roomsMap = new Map<string, { id: string; name: string; isPersonal: boolean; memberIds: string[] }>();
-  
-  users.forEach(user => {
-    if (user.rooms && Array.isArray(user.rooms)) {
-      user.rooms.forEach((room: { id: string; name: string; isPersonal?: boolean }) => {
-        if (!roomsMap.has(room.id)) {
-          roomsMap.set(room.id, {
-            id: room.id,
-            name: room.name,
-            isPersonal: room.isPersonal || false,
-            memberIds: []
-          });
-        }
-        roomsMap.get(room.id)!.memberIds.push(user.id);
-      });
-    }
-  });
-  
-  // Process rooms with member details
-  const processedRooms = Array.from(roomsMap.values()).map((room) => ({
-    id: room.id === 'room_0' ? 0 : room.id === 'room_1' ? 1 : 2,
-    name: room.name,
-    isPersonal: room.isPersonal,
-    members: room.memberIds.map((userId) => {
-      const user = users.find((u) => u.id === userId);
-      return user ? { name: user.name, image: user.profileImage } : { name: '', image: '' };
-    }),
-  }));
-
-  // Calculate stake and participants for each bet
-  const processedBets = bets.map((bet) => {
-    const betTrades = trades.filter((t) => t.betId === bet.id);
-    const totalStake = betTrades.reduce((sum, t) => sum + t.amount, 0);
-    
-    // Get unique participants
-    const uniqueUserIds = [...new Set(betTrades.map((t) => t.userId))];
-    const participants = uniqueUserIds.map((userId) => {
-      const user = users.find((u) => u.id === userId);
-      return user ? { name: user.name, image: user.profileImage } : { name: '', image: '' };
-    });
-
-    // Calculate current percentage (latest trade percentage for simplicity)
-    const latestTrade = betTrades.length > 0 ? betTrades[betTrades.length - 1] : null;
-    const currentPercentage = latestTrade ? latestTrade.percentage : 50;
-
-    return {
-      id: parseInt(bet.id.replace('bet_', '')),
-      roomId: bet.roomId === 'room_0' ? 0 : bet.roomId === 'room_1' ? 1 : 2,
-      title: bet.title,
-      imageUrl: bet.imageUrl,
-      amountAtStake: totalStake,
-      participants,
-      percentage: currentPercentage,
-      expirationDate: bet.expirationDate,
-    };
-  });
-
-  return { rooms: processedRooms, bets: processedBets };
-};
-
-const { rooms, bets } = processRoomsAndBets();
 
 export default function Homepage() {
   const { supabase } = useSupabase();
@@ -147,7 +80,7 @@ export default function Homepage() {
   };
 
   // Fetch user profile from Supabase
-  const fetchUserProfile = async () => {
+  const fetchUserProfile = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -165,14 +98,14 @@ export default function Homepage() {
     } catch (err) {
       console.error('Error fetching user profile:', err);
     }
-  };
+  }, [supabase]);
 
   useEffect(() => {
     fetchUserProfile();
-  }, [supabase]);
+  }, [fetchUserProfile]);
 
   // Fetch rooms from Supabase
-  const fetchRooms = async () => {
+  const fetchRooms = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -218,8 +151,9 @@ export default function Homepage() {
 
       if (roomMemberships && roomMemberships.length > 0) {
         // For each room, get all members with their profiles
+        type RoomMembership = { rooms: { id: string; name: string } };
         const roomsWithMembers = await Promise.all(
-          roomMemberships.map(async (membership: any) => {
+          (roomMemberships as unknown as RoomMembership[]).map(async (membership) => {
             const room = membership.rooms;
             
             // Get all members of this room
@@ -242,7 +176,7 @@ export default function Homepage() {
             return {
               id: room.id,
               name: room.name,
-              members: members?.map((m: any) => ({
+              members: (members as unknown as Array<{ user_id: string; profiles: { pseudonym: string; avatar_url: string | null } | null }> | null)?.map((m) => ({
                 name: m.profiles?.pseudonym || 'Unknown',
                 image: m.profiles?.avatar_url || '',
               })) || [],
@@ -264,14 +198,14 @@ export default function Homepage() {
     } catch (err) {
       console.error('Error fetching rooms:', err);
     }
-  };
+  }, [supabase, selectedRoomId]);
 
   useEffect(() => {
     fetchRooms();
-  }, [supabase]);
+  }, [fetchRooms]);
 
   // Fetch bets from Supabase
-  const fetchBets = async () => {
+  const fetchBets = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -299,8 +233,21 @@ export default function Homepage() {
 
       if (userBets && userBets.length > 0) {
         // Get all participants for each bet
+        type UserBetRow = {
+          bet_id: string;
+          is_admin: boolean;
+          bets: {
+            id: string;
+            title: string;
+            image_url: string;
+            created_by: string;
+            is_resolved: boolean;
+            created_at: string;
+            resolved_at: string | null;
+          }
+        };
         const betsWithParticipants = await Promise.all(
-          userBets.map(async (userBet: any) => {
+          (userBets as unknown as UserBetRow[]).map(async (userBet) => {
             const bet = userBet.bets;
             
             // Get all participants for this bet
@@ -329,7 +276,7 @@ export default function Homepage() {
               is_resolved: bet.is_resolved,
               created_at: bet.created_at,
               resolved_at: bet.resolved_at,
-              participants: participants?.map((p: any) => ({
+              participants: (participants as unknown as Array<{ user_id: string; is_admin: boolean; profiles: { pseudonym: string; avatar_url: string | null } | null }> | null)?.map((p) => ({
                 user_id: p.user_id,
                 is_admin: p.is_admin,
                 pseudonym: p.profiles?.pseudonym || 'Unknown',
@@ -381,14 +328,14 @@ export default function Homepage() {
     } catch (err) {
       console.error('Error fetching bets:', err);
     }
-  };
+  }, [supabase, supabaseRooms]);
 
   useEffect(() => {
     // Only fetch bets after rooms are loaded
     if (supabaseRooms.length > 0) {
       fetchBets();
     }
-  }, [supabase, supabaseRooms]);
+  }, [fetchBets, supabaseRooms.length]);
 
   const triggerBetAnimation = (data: {
     choice: 'yes' | 'no';

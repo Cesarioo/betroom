@@ -4,22 +4,20 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowRight, ArrowLeft, Check, Crown, Users, Plus, Target, Upload } from 'lucide-react';
+import { ArrowRight, Users, Plus, Target, Upload } from 'lucide-react';
 import Link from 'next/link';
 import OnboardingSlider from '@/components/onboarding/onboardingSlider';
 import OnboardingCreateBet from '@/components/onboarding/onboardingCreateBet';
 import OnboardingBetCard from '@/components/onboarding/onboardingBetCard';
 import OnboardingAddRoom from '@/components/onboarding/onboardingAddRoom';
-import OnboardingBetDialog from '@/components/onboarding/onboardingBetDialog';
+// import OnboardingBetDialog from '@/components/onboarding/onboardingBetDialog';
 import dbData from '@/backend/db.json';
 import { useSupabase } from '@/lib/hooks/supabase';
 
 export default function OnboardingPage() {
   const { supabase } = useSupabase();
   const [currentStep, setCurrentStep] = useState(0);
-  const [sliderValue, setSliderValue] = useState([50]);
-  const [selectedChoice, setSelectedChoice] = useState<'yes' | 'no' | null>(null);
-  const [amount, setAmount] = useState('10');
+  // Slider state kept internal to slider; we don't consume value outside
   const [sliderCompleted, setSliderCompleted] = useState(false);
   const [showCreateBetDialog, setShowCreateBetDialog] = useState(false);
   const [betOnRoomCompleted, setBetOnRoomCompleted] = useState(false);
@@ -79,33 +77,7 @@ export default function OnboardingPage() {
     }
   ];
 
-  const nextStep = () => {
-    if (currentStep < steps.length - 1) {
-      // Check if slider step is completed
-      if (currentStep === 1 && !sliderCompleted) {
-        return; // Don't allow proceeding if slider not completed
-      }
-      // Check if room creation step is completed
-      if (currentStep === 2 && !roomCreationCompleted) {
-        return; // Don't allow proceeding if room not created
-      }
-      // Check if bet creation step is completed
-      if (currentStep === 3 && !betOnRoomCompleted) {
-        return; // Don't allow proceeding if bet not created
-      }
-      // Check if place bet step is completed
-      if (currentStep === 4 && !placeBetCompleted) {
-        return; // Don't allow proceeding if bet not placed
-      }
-      setCurrentStep(currentStep + 1);
-    }
-  };
-
-  const prevStep = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
+  // Navigation helpers are handled inline per step
 
   const renderStepContent = () => {
     switch (steps[currentStep].content) {
@@ -209,9 +181,9 @@ export default function OnboardingPage() {
 
                     // Proceed to next step
                     setCurrentStep(currentStep + 1);
-                  } catch (err: any) {
+                  } catch (err: unknown) {
                     console.error('Error saving profile:', err);
-                    alert(err.message || 'Failed to save profile');
+                    alert(err instanceof Error ? err.message : 'Failed to save profile');
                   } finally {
                     setIsUploadingProfile(false);
                   }
@@ -307,10 +279,9 @@ export default function OnboardingPage() {
         return (
           <div className="space-y-6">
             <OnboardingSlider 
-              onComplete={(choice, percentage) => {
+              onComplete={(_, percentage) => {
                 setSliderCompleted(true);
-                setSelectedChoice(choice);
-                setSliderValue([percentage]);
+                // proceed with percentage if needed later
                 // Auto advance to next step
                 setCurrentStep(currentStep + 1);
               }}

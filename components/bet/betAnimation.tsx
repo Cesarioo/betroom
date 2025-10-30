@@ -77,10 +77,6 @@ export default function BetAnimation({
   if (!isOpen && !isExiting) return null;
 
   const isYes = choice === 'yes';
-  const primaryColor = isYes ? 'green' : 'red';
-  const bgGradient = isYes 
-    ? 'from-green-500/20 via-green-500/10 to-transparent'
-    : 'from-red-500/20 via-red-500/10 to-transparent';
 
   return (
     <div 

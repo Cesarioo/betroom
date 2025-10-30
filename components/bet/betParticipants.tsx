@@ -2,7 +2,6 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Crown } from 'lucide-react';
-import dbData from '@/backend/db.json';
 import { useSupabase } from '@/lib/hooks/supabase';
 import { useEffect, useState } from 'react';
 
@@ -24,9 +23,11 @@ interface BetParticipantsProps {
   tradeUsers?: Map<string, { pseudonym: string; avatar_url: string | null }>;
 }
 
+type AdminProfile = { id: string; pseudonym: string; avatar_url: string | null };
+
 export default function BetParticipants({ isExpanded, betTrades, roomId, tradeUsers }: BetParticipantsProps) {
   const { supabase } = useSupabase();
-  const [roomAdmins, setRoomAdmins] = useState<any[]>([]);
+  const [roomAdmins, setRoomAdmins] = useState<AdminProfile[]>([]);
   
   // Group trades by side
   const yesTrades = betTrades.filter((t) => t.side === 'yes');
@@ -51,7 +52,7 @@ export default function BetParticipants({ isExpanded, betTrades, roomId, tradeUs
           .eq('is_admin', true);
 
         if (roomMembers) {
-          const adminIds = roomMembers.map((m: any) => m.user_id);
+          const adminIds = (roomMembers as Array<{ user_id: string; is_admin: boolean }>).map((m) => m.user_id);
           
           // Get admin profiles
           const { data: profiles } = await supabase
@@ -59,7 +60,7 @@ export default function BetParticipants({ isExpanded, betTrades, roomId, tradeUs
             .select('id, pseudonym, avatar_url')
             .in('id', adminIds);
 
-          setRoomAdmins(profiles || []);
+          setRoomAdmins((profiles as AdminProfile[] | null) || []);
         }
       } catch (error) {
         console.error('Error fetching room admins:', error);

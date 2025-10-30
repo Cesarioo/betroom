@@ -77,6 +77,11 @@ export default function CreateBet({ open, onOpenChange, onTriggerAnimation, onBe
   // Local error state for display
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Reflect hook error into local error message
+  useEffect(() => {
+    if (betError) setErrorMessage(betError);
+  }, [betError]);
+
   // Fetch data from Supabase
   useEffect(() => {
     const fetchData = async () => {
@@ -119,8 +124,9 @@ export default function CreateBet({ open, onOpenChange, onTriggerAnimation, onBe
 
         if (roomMemberships) {
           // For each room, get all members with their profiles
-          const roomsWithMembers = await Promise.all(
-            roomMemberships.map(async (membership: any) => {
+        type RoomMembership = { rooms: { id: string; name: string } };
+        const roomsWithMembers = await Promise.all(
+          (roomMemberships as unknown as RoomMembership[]).map(async (membership) => {
               const room = membership.rooms;
               
               // Get all members of this room
@@ -139,7 +145,7 @@ export default function CreateBet({ open, onOpenChange, onTriggerAnimation, onBe
               return {
                 id: room.id,
                 name: room.name,
-                members: members?.map((m: any) => ({
+                members: (members as unknown as Array<{ user_id: string; profiles: { id: string; pseudonym: string; avatar_url: string | null } | null }> | null)?.map((m) => ({
                   id: m.user_id,
                   pseudonym: m.profiles?.pseudonym || 'Unknown',
                   avatar_url: m.profiles?.avatar_url || null,

@@ -5,7 +5,7 @@ import { ArrowLeft, LogOut, ChevronDown, Pen, Check, X, ArrowDownToLine, ArrowUp
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useRef, useEffect } from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import AddMoney from './addMoney';
 import { useSupabase } from '@/lib/hooks/supabase';
 import { useRouter } from 'next/navigation';
@@ -41,8 +41,7 @@ export default function ProfilePage() {
   // Money state using custom hook
   const { currentBalance, userInBets, isLoading: isLoadingMoney } = useUserMoney();
   
-  // Money movements from Supabase (for portfolio chart only)
-  const [moneyMovements, setMoneyMovements] = useState<MoneyMovement[]>([]);
+  // Money movements processed into portfolioData for chart
   const [portfolioData, setPortfolioData] = useState<Array<{ month: string; value: number }>>([]);
   
   // Statistics from Supabase
@@ -51,7 +50,7 @@ export default function ProfilePage() {
   const [betsLost, setBetsLost] = useState(0);
   const [winRate, setWinRate] = useState('0%');
   const [roomsJoined, setRoomsJoined] = useState(0);
-  const [isLoadingStats, setIsLoadingStats] = useState(true);
+  const [, setIsLoadingStats] = useState(true);
   
   // Bet history from Supabase
   const [betHistory, setBetHistory] = useState<Array<{
@@ -68,7 +67,6 @@ export default function ProfilePage() {
   // Editing state
   const [tempPseudonym, setTempPseudonym] = useState('');
   const [tempProfileImage, setTempProfileImage] = useState('');
-  const memberSince = "January 2024";
 
   // Fetch money movements for portfolio chart only
   useEffect(() => {
@@ -102,7 +100,6 @@ export default function ProfilePage() {
         }
 
         if (movements) {
-          setMoneyMovements(movements);
 
           // Get all unique bet IDs to fetch bet details
           const betIds = trades ? [...new Set(trades.map(t => t.bet_id))] : [];
@@ -239,7 +236,6 @@ export default function ProfilePage() {
           setTotalBets(trades.length);
 
           // Calculate money in unresolved bets
-          let moneyInUnresolved = 0;
           let wonCount = 0;
           let lostCount = 0;
 
@@ -249,9 +245,7 @@ export default function ProfilePage() {
             if (!bet) return;
 
             // Check if bet is unresolved (is_resolved = false)
-            if (!bet.is_resolved) {
-              moneyInUnresolved += trade.amount;
-            } else {
+            if (bet.is_resolved) {
               // Check if user won or lost
               // User wins if their "side" matches the resolved_outcome
               const userSide = trade.side === 'yes' ? 100 : 0;
