@@ -22,7 +22,7 @@ export function useUserMoney(): MoneyData {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchMoneyData = async () => {
+    const fetchMoneyData = async () => { 
       try {
         setIsLoading(true);
         setError(null);
