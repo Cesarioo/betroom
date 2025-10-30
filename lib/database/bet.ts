@@ -155,7 +155,7 @@ export function useCreateBet(): UseCreateBetResult {
       const { error: tradeError } = await supabase
         .from('trades')
         .insert(tradeData);
-
+ 
       if (tradeError) {
         console.error('Error creating initial trade:', tradeError);
         
