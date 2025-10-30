@@ -340,11 +340,13 @@ export default function Homepage() {
         );
 
         const validBets = betsWithParticipants.filter((bet): bet is NonNullable<typeof bet> => bet !== null);
-        
+        // Exclude resolved bets
+        const activeBets = validBets.filter(b => !b.is_resolved);
+
         // Create multiple bet entries - one for each room the bet should appear in
-        const betsWithRooms: Array<typeof validBets[0] & { roomId: string }> = [];
+        const betsWithRooms: Array<typeof activeBets[0] & { roomId: string }> = [];
         
-        validBets.forEach(bet => {
+        activeBets.forEach(bet => {
           // Always add to personal room (shows ALL user's bets)
           betsWithRooms.push({
             ...bet,
