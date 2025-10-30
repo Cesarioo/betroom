@@ -7,9 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import dbData from '@/backend/db.json';
-import BetDialog from '../bet/betDialog';
-import BetParticipants from '../bet/betParticipants';
-import ResolveDialog from '../bet/resolve';
+import BetDialog from './onboardingBetDialog';
+import BetParticipants from './onboardingBetParticipants';
+import ResolveDialog from './onboardingResolve';
 
 interface Participant {
   name: string;
