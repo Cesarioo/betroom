@@ -24,6 +24,7 @@ interface Trade {
   price: number;
   amount: number;
   maker_trade_id: string | null;
+  created_at: string;
 }
 
 interface BetProps {
@@ -228,8 +229,8 @@ export default function Bet({
         choice: betChoice,
         percentage: finalPercentage,
         amount: finalAmount,
-        userImage: currentUser?.profileImage || '',
-        userName: currentUser?.name || 'You',
+        userImage: currentUser?.avatar_url || '',
+        userName: currentUser?.pseudonym || 'You',
       });
     }, 100);
   };
