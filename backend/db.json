@@ -129,7 +129,7 @@
       "roomId": "room_1",
       "title": "Will it rain tomorrow in SF?",
       "imageUrl": "https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=400&q=80",
-      "expirationDate": "2025-10-18T00:00:00.000Z",
+      "expirationDate": "2027-10-18T00:00:00.000Z",
       "createdBy": "user_2",
       "createdAt": "2025-10-05T09:00:00.000Z"
     },
